@@ -61,7 +61,7 @@
             "Initial commit contains the clean project skeleton"
           ],
           "dependencies": ["SETUP-003"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SETUP-005",
