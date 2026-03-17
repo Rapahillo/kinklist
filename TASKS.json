@@ -36,7 +36,7 @@
             "Prisma Studio launches successfully with npx prisma studio"
           ],
           "dependencies": ["SETUP-001"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SETUP-003",
