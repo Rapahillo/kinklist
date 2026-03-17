@@ -20,7 +20,7 @@
             "npm run build completes without errors"
           ],
           "dependencies": [],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SETUP-002",
