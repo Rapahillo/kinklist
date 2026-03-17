@@ -198,7 +198,7 @@
             "Migration can be applied to the Neon production database"
           ],
           "dependencies": ["SCHEMA-001", "SCHEMA-002", "SCHEMA-003", "SCHEMA-004", "SCHEMA-005", "SCHEMA-006"],
-          "verified": false
+          "verified": true
         }
       ]
     },
