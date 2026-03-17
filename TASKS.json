@@ -171,7 +171,7 @@
             "If a collaborator's User record doesn't exist yet (new email), create the User implicitly"
           ],
           "dependencies": ["SCHEMA-002", "SCHEMA-001"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SCHEMA-006",

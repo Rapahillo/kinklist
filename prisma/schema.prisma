@@ -13,10 +13,11 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(uuid()) @db.Uuid
-  email     String     @unique
-  createdAt DateTime   @default(now())
-  todoLists TodoList[]
+  id             String         @id @default(uuid()) @db.Uuid
+  email          String         @unique
+  createdAt      DateTime       @default(now())
+  todoLists      TodoList[]
+  collaborations Collaborator[]
 }
 
 model TodoList {
@@ -27,9 +28,10 @@ model TodoList {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner User      @relation(fields: [ownerId], references: [id])
-  items TodoItem[]
-  tags  Tag[]
+  owner         User           @relation(fields: [ownerId], references: [id])
+  items         TodoItem[]
+  tags          Tag[]
+  collaborators Collaborator[]
 
   @@index([hash])
 }
@@ -72,4 +74,17 @@ model Tag {
   items TodoItem[]
 
   @@unique([name, listId])
+}
+
+model Collaborator {
+  id       String   @id @default(uuid()) @db.Uuid
+  listId   String   @db.Uuid
+  userId   String   @db.Uuid
+  nickname String?
+  addedAt  DateTime @default(now())
+
+  list TodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id])
+
+  @@unique([listId, userId])
 }
