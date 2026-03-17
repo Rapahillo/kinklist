@@ -140,7 +140,7 @@
             "Deleting a TodoList cascades to delete its TodoItems"
           ],
           "dependencies": ["SCHEMA-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SCHEMA-004",
