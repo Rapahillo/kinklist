@@ -18,6 +18,29 @@ model User {
   createdAt      DateTime       @default(now())
   todoLists      TodoList[]
   collaborations Collaborator[]
+  sessions       Session[]
+}
+
+model MagicLink {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([token])
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([token])
 }
 
 model TodoList {

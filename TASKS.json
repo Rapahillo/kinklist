@@ -185,7 +185,7 @@
             "A used magic link cannot be reused (check usedAt is null)"
           ],
           "dependencies": ["SCHEMA-001"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SCHEMA-007",
