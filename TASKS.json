@@ -115,7 +115,7 @@
             "No password or auth-related fields"
           ],
           "dependencies": ["SETUP-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SCHEMA-002",
