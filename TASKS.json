@@ -95,7 +95,7 @@
             "A shared Prisma client singleton exists in lib/prisma.ts"
           ],
           "dependencies": ["SETUP-002"],
-          "verified": false
+          "verified": true
         }
       ]
     },
