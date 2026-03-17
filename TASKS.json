@@ -222,7 +222,7 @@
             "If user is already authenticated (valid session cookie), redirect to /dashboard"
           ],
           "dependencies": ["SETUP-006", "SCHEMA-007"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "AUTH-002",
