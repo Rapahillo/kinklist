@@ -96,6 +96,34 @@
           ],
           "dependencies": ["SETUP-002"],
           "verified": true
+        },
+        {
+          "id": "SETUP-007",
+          "title": "Configure Resend for email delivery",
+          "description": "Set up Resend as the email provider. Obtain an API key, configure environment variables, and verify email sending works.",
+          "requirements": [
+            "Create a Resend account and obtain an API key",
+            "Set RESEND_API_KEY in .env.local for local development and in Vercel environment variables for production",
+            "Verify a sender domain in Resend (or use the default onboarding@resend.dev for testing)",
+            "Confirm that the magic link email flow works end-to-end with the configured API key",
+            "In development without RESEND_API_KEY, email content is logged to the server console as a fallback"
+          ],
+          "dependencies": ["SETUP-005"],
+          "verified": true
+        },
+        {
+          "id": "SETUP-008",
+          "title": "Verify custom sender domain in Resend",
+          "description": "Configure and verify a custom sender domain in Resend so emails are sent from your own domain instead of onboarding@resend.dev.",
+          "requirements": [
+            "Add your domain in the Resend dashboard under Domains",
+            "Add the required DNS records (MX, TXT/SPF, DKIM) to your domain's DNS settings",
+            "Wait for domain verification to complete in Resend",
+            "Update the 'from' address in the magic link email route to use the verified domain",
+            "Confirm emails are delivered successfully from the custom domain"
+          ],
+          "dependencies": ["SETUP-007"],
+          "verified": false
         }
       ]
     },
