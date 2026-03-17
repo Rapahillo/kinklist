@@ -127,7 +127,7 @@
             "Relation: a User has many TodoLists (as owner)"
           ],
           "dependencies": ["SCHEMA-001"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SCHEMA-003",

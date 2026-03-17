@@ -13,7 +13,21 @@ datasource db {
 }
 
 model User {
+  id        String     @id @default(uuid()) @db.Uuid
+  email     String     @unique
+  createdAt DateTime   @default(now())
+  todoLists TodoList[]
+}
+
+model TodoList {
   id        String   @id @default(uuid()) @db.Uuid
-  email     String   @unique
+  hash      String   @unique
+  title     String
+  ownerId   String   @db.Uuid
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id])
+
+  @@index([hash])
 }
