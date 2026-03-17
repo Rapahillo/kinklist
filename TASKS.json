@@ -1,0 +1,817 @@
+{
+  "project": "KinkList",
+  "phases": [
+    {
+      "id": "SETUP",
+      "name": "Project Setup & Deployment",
+      "priority": 1,
+      "description": "Initialize the project, configure all infrastructure, and verify the app builds and deploys successfully before any feature work begins.",
+      "tasks": [
+        {
+          "id": "SETUP-001",
+          "title": "Initialize Next.js project",
+          "description": "Create a new Next.js project with App Router, TypeScript, Tailwind CSS, and ESLint. Verify the default page renders at localhost:3000.",
+          "requirements": [
+            "Use `npx create-next-app@latest` with App Router enabled",
+            "TypeScript must be enabled",
+            "Tailwind CSS must be configured and working",
+            "ESLint must be configured",
+            "The default Next.js page renders successfully at http://localhost:3000",
+            "npm run build completes without errors"
+          ],
+          "dependencies": [],
+          "verified": false
+        },
+        {
+          "id": "SETUP-002",
+          "title": "Configure Prisma with PostgreSQL",
+          "description": "Install Prisma, configure it to connect to a local PostgreSQL database (via Docker) and prepare for Neon in production.",
+          "requirements": [
+            "Prisma is installed as a dev dependency",
+            "@prisma/client is installed as a dependency",
+            "prisma/schema.prisma exists with PostgreSQL as the provider",
+            "Database URL is read from DATABASE_URL environment variable",
+            "A docker-compose.yml provides a local PostgreSQL instance for development",
+            "npx prisma db push works against the local database",
+            "Prisma Studio launches successfully with npx prisma studio"
+          ],
+          "dependencies": ["SETUP-001"],
+          "verified": false
+        },
+        {
+          "id": "SETUP-003",
+          "title": "Set up environment variables pattern",
+          "description": "Create .env.local for local secrets and .env.example as a template for other developers.",
+          "requirements": [
+            ".env.example exists with all required variable names (no real values)",
+            ".env.local is in .gitignore",
+            "Required variables: DATABASE_URL, RESEND_API_KEY, NEXT_PUBLIC_APP_URL",
+            ".env.local works with the local Docker PostgreSQL instance"
+          ],
+          "dependencies": ["SETUP-002"],
+          "verified": false
+        },
+        {
+          "id": "SETUP-004",
+          "title": "Set up Git repository",
+          "description": "Initialize Git, create a proper .gitignore, and make the initial commit.",
+          "requirements": [
+            "Git repository is initialized",
+            ".gitignore includes: node_modules, .next, .env.local, .env, prisma/*.db",
+            "Initial commit contains the clean project skeleton"
+          ],
+          "dependencies": ["SETUP-003"],
+          "verified": false
+        },
+        {
+          "id": "SETUP-005",
+          "title": "Deploy to Vercel",
+          "description": "Connect the repository to Vercel and verify the app deploys and runs in production. Configure Neon as the production database.",
+          "requirements": [
+            "Repository is connected to Vercel (via Git integration or CLI)",
+            "Neon PostgreSQL database is created (free tier)",
+            "DATABASE_URL is set in Vercel environment variables pointing to Neon",
+            "NEXT_PUBLIC_APP_URL is set to the Vercel deployment URL",
+            "The app deploys successfully and the default page is accessible at the Vercel URL",
+            "Subsequent git pushes trigger automatic redeployments"
+          ],
+          "dependencies": ["SETUP-004"],
+          "corner_cases": [
+            "Prisma Client must be generated during the Vercel build — add `prisma generate` to the build script if needed",
+            "Neon connection may require SSL — ensure the connection string includes ?sslmode=require"
+          ],
+          "verified": false
+        },
+        {
+          "id": "SETUP-006",
+          "title": "Set up project folder structure",
+          "description": "Create the folder structure for the application following Next.js App Router conventions.",
+          "requirements": [
+            "app/ — pages and layouts (App Router)",
+            "app/api/ — API route handlers",
+            "components/ — reusable React components",
+            "lib/ — shared utilities, database client, auth helpers",
+            "prisma/ — schema and migrations",
+            "A shared Prisma client singleton exists in lib/prisma.ts"
+          ],
+          "dependencies": ["SETUP-002"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "SCHEMA",
+      "name": "Database Schema",
+      "priority": 2,
+      "description": "Define all database models and run the initial migration. This must be complete before any feature work.",
+      "tasks": [
+        {
+          "id": "SCHEMA-001",
+          "title": "Create User model",
+          "description": "Define the User model in Prisma schema. Users are identified solely by email.",
+          "requirements": [
+            "Fields: id (UUID, auto-generated), email (unique, required), createdAt (timestamp)",
+            "Email must have a unique constraint",
+            "No password or auth-related fields"
+          ],
+          "dependencies": ["SETUP-002"],
+          "verified": false
+        },
+        {
+          "id": "SCHEMA-002",
+          "title": "Create TodoList model",
+          "description": "Define the TodoList model with a unique shareable hash.",
+          "requirements": [
+            "Fields: id (UUID), hash (unique, 8+ character random string), title (required), ownerId (FK to User), createdAt, updatedAt",
+            "hash must have a unique constraint and an index for fast lookups",
+            "Relation: a User has many TodoLists (as owner)"
+          ],
+          "dependencies": ["SCHEMA-001"],
+          "verified": false
+        },
+        {
+          "id": "SCHEMA-003",
+          "title": "Create TodoItem model",
+          "description": "Define the TodoItem model with all required and optional fields.",
+          "requirements": [
+            "Fields: id (UUID), title (required), description (optional, text), status (enum: OPEN, COMPLETED, ARCHIVED), priority (optional enum: LOW, MEDIUM, HIGH), dueDate (optional datetime), listId (FK to TodoList), createdByEmail (string — email of creator), createdAt, updatedAt",
+            "status defaults to OPEN",
+            "Relation: a TodoList has many TodoItems",
+            "Deleting a TodoList cascades to delete its TodoItems"
+          ],
+          "dependencies": ["SCHEMA-002"],
+          "verified": false
+        },
+        {
+          "id": "SCHEMA-004",
+          "title": "Create Tag model",
+          "description": "Define the Tag model. Tags are scoped per-list.",
+          "requirements": [
+            "Fields: id (UUID), name (required), color (optional string for UI), listId (FK to TodoList)",
+            "A tag name must be unique within a list (compound unique on name + listId)",
+            "Many-to-many relation between TodoItem and Tag",
+            "Deleting a TodoList cascades to delete its Tags"
+          ],
+          "dependencies": ["SCHEMA-002"],
+          "verified": false
+        },
+        {
+          "id": "SCHEMA-005",
+          "title": "Create Collaborator model",
+          "description": "Define the Collaborator join model linking users to shared lists with optional nicknames.",
+          "requirements": [
+            "Fields: id (UUID), listId (FK to TodoList), userId (FK to User), nickname (optional string), addedAt (timestamp)",
+            "Compound unique on listId + userId (a user can only be added once per list)",
+            "Relation: a TodoList has many Collaborators, a User has many Collaborator entries",
+            "Deleting a TodoList cascades to delete its Collaborators",
+            "The list owner is NOT a Collaborator — ownership is tracked via TodoList.ownerId"
+          ],
+          "corner_cases": [
+            "Adding the list owner as a collaborator should be prevented at the application level",
+            "If a collaborator's User record doesn't exist yet (new email), create the User implicitly"
+          ],
+          "dependencies": ["SCHEMA-002", "SCHEMA-001"],
+          "verified": false
+        },
+        {
+          "id": "SCHEMA-006",
+          "title": "Create MagicLink and Session models",
+          "description": "Define models for magic link tokens and user sessions.",
+          "requirements": [
+            "MagicLink fields: id (UUID), token (unique, secure random string), email (string), expiresAt (datetime), usedAt (optional datetime — null if unused)",
+            "Session fields: id (UUID), token (unique, secure random string), userId (FK to User), expiresAt (datetime), createdAt",
+            "MagicLink tokens expire after 15 minutes",
+            "Sessions expire after 7 days",
+            "A used magic link cannot be reused (check usedAt is null)"
+          ],
+          "dependencies": ["SCHEMA-001"],
+          "verified": false
+        },
+        {
+          "id": "SCHEMA-007",
+          "title": "Run initial migration",
+          "description": "Generate and apply the Prisma migration to create all tables in the local and production databases.",
+          "requirements": [
+            "npx prisma migrate dev creates the migration successfully",
+            "All tables are created in the local PostgreSQL database",
+            "Prisma Client is regenerated with all types",
+            "Migration can be applied to the Neon production database"
+          ],
+          "dependencies": ["SCHEMA-001", "SCHEMA-002", "SCHEMA-003", "SCHEMA-004", "SCHEMA-005", "SCHEMA-006"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "AUTH",
+      "name": "Magic Link Authentication",
+      "priority": 3,
+      "description": "Implement passwordless authentication via magic links sent to the user's email.",
+      "tasks": [
+        {
+          "id": "AUTH-001",
+          "title": "Landing page with email entry form",
+          "description": "Create the landing page where users enter their email to receive a magic login link.",
+          "requirements": [
+            "Route: / (root)",
+            "Simple form with email input and submit button",
+            "Client-side email format validation before submission",
+            "On submit: POST to /api/auth/login with the email",
+            "Show success message: 'Check your email for a login link'",
+            "Show error message if the request fails",
+            "If user is already authenticated (valid session cookie), redirect to /dashboard"
+          ],
+          "dependencies": ["SETUP-006", "SCHEMA-007"],
+          "verified": false
+        },
+        {
+          "id": "AUTH-002",
+          "title": "Request magic link",
+          "description": "API endpoint that generates a magic link token, creates the user if needed, and sends the login email.",
+          "requirements": [
+            "Route: POST /api/auth/login",
+            "Accepts JSON body: { email: string }",
+            "Validate email format on the server",
+            "If no User exists for this email, create one (implicit registration)",
+            "Generate a cryptographically secure random token (at least 32 bytes, URL-safe)",
+            "Store a MagicLink record with the token, email, and expiresAt (15 minutes from now)",
+            "Send an email via Resend containing a link: {APP_URL}/api/auth/verify?token={token}",
+            "In development (no RESEND_API_KEY), log the magic link URL to the server console instead",
+            "Return 200 with { message: 'Magic link sent' } regardless of whether the email exists (prevent email enumeration)"
+          ],
+          "corner_cases": [
+            "Multiple magic link requests for the same email should each create a new token (old ones remain valid until expiry)",
+            "Email should be lowercased and trimmed before processing",
+            "Return the same success response even for invalid emails to prevent enumeration"
+          ],
+          "dependencies": ["SCHEMA-007"],
+          "verified": false
+        },
+        {
+          "id": "AUTH-003",
+          "title": "Verify magic link and create session",
+          "description": "API endpoint that verifies the magic link token, creates a session, and redirects to the dashboard.",
+          "requirements": [
+            "Route: GET /api/auth/verify?token={token}",
+            "Look up the MagicLink record by token",
+            "Verify the token has not expired (expiresAt > now)",
+            "Verify the token has not been used (usedAt is null)",
+            "Mark the token as used (set usedAt to now)",
+            "Find the User by the magic link's email",
+            "Create a Session record with a secure token, userId, and expiresAt (7 days from now)",
+            "Set an HTTP-only, secure, SameSite=Lax cookie named 'session' with the session token",
+            "Redirect to /dashboard",
+            "If token is invalid, expired, or already used: redirect to / with an error query param"
+          ],
+          "corner_cases": [
+            "Expired token should show a clear message asking the user to request a new link",
+            "Already-used token should show 'This link has already been used'",
+            "Race condition: two requests with the same token — only the first should succeed (use atomic update)"
+          ],
+          "dependencies": ["AUTH-002"],
+          "verified": false
+        },
+        {
+          "id": "AUTH-004",
+          "title": "Session middleware",
+          "description": "Create middleware or utility to validate the session cookie and provide the authenticated user to page/API handlers.",
+          "requirements": [
+            "Read the 'session' cookie from the request",
+            "Look up the Session record by token",
+            "Verify the session has not expired",
+            "Return the associated User if valid, null if not",
+            "Provide a helper function: getAuthenticatedUser(request) → User | null",
+            "Protected pages (dashboard) redirect to / if not authenticated",
+            "Protected API routes return 401 if not authenticated"
+          ],
+          "dependencies": ["AUTH-003"],
+          "verified": false
+        },
+        {
+          "id": "AUTH-005",
+          "title": "Logout",
+          "description": "Allow users to end their session.",
+          "requirements": [
+            "Route: POST /api/auth/logout",
+            "Delete the Session record from the database",
+            "Clear the session cookie",
+            "Redirect to /",
+            "A logout button is visible on the dashboard and list views"
+          ],
+          "dependencies": ["AUTH-004"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "DASH",
+      "name": "Dashboard",
+      "priority": 4,
+      "description": "The user's home screen showing all their todo lists with options to create and delete lists.",
+      "tasks": [
+        {
+          "id": "DASH-001",
+          "title": "View dashboard with all todo lists",
+          "description": "Display all todo lists the authenticated user owns or has been added to as a collaborator.",
+          "requirements": [
+            "Route: /dashboard (protected — requires authentication)",
+            "Fetch all TodoLists where the user is the owner OR a collaborator",
+            "Display each list with: title, item count, creation date",
+            "Visually distinguish owned lists from shared lists (e.g., a 'shared' badge)",
+            "Show the user's email and a logout button in the header",
+            "Empty state: friendly message when the user has no lists yet"
+          ],
+          "dependencies": ["AUTH-004", "SCHEMA-007"],
+          "verified": false
+        },
+        {
+          "id": "DASH-002",
+          "title": "Create a new todo list",
+          "description": "Allow users to create a new todo list from the dashboard.",
+          "requirements": [
+            "A 'Create list' button or input on the dashboard",
+            "User enters a list title",
+            "On submit: create a TodoList with a generated unique hash, the title, and the authenticated user as owner",
+            "The hash must be URL-safe (alphanumeric, 8+ characters) and unique",
+            "After creation, the new list appears in the dashboard (no full page reload needed)",
+            "Optionally redirect to the new list's view"
+          ],
+          "corner_cases": [
+            "Empty or whitespace-only title should be rejected",
+            "Hash collision (extremely unlikely but handle): regenerate if the hash already exists"
+          ],
+          "dependencies": ["DASH-001"],
+          "verified": false
+        },
+        {
+          "id": "DASH-003",
+          "title": "Delete a todo list",
+          "description": "Allow users to delete a todo list they own from the dashboard.",
+          "requirements": [
+            "Each owned list has a delete button/action",
+            "Show a confirmation dialog before deleting",
+            "On confirm: delete the TodoList and all associated data (items, tags, collaborators) via cascade",
+            "Only the owner can delete a list — collaborators cannot",
+            "After deletion, the list is removed from the dashboard immediately",
+            "Collaborators who had access will no longer see the list on their dashboard"
+          ],
+          "corner_cases": [
+            "Attempting to delete a list you don't own returns 403",
+            "Deleting a list that no longer exists returns 404 gracefully"
+          ],
+          "dependencies": ["DASH-001"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "LIST",
+      "name": "Todo List View",
+      "priority": 5,
+      "description": "The main interface for viewing and interacting with a single todo list.",
+      "tasks": [
+        {
+          "id": "LIST-001",
+          "title": "View todo list page",
+          "description": "Display a single todo list with all its items, accessed via the list's unique hash.",
+          "requirements": [
+            "Route: /list/[hash]",
+            "Fetch the TodoList by hash, including all non-archived TodoItems",
+            "Display the list title at the top",
+            "Display each item showing: title, status (checkbox), and any set optional fields",
+            "If accessed by an authenticated user who owns or collaborates on the list, show full controls",
+            "If accessed via hash URL without authentication, show full edit controls (anyone with link can edit)",
+            "Show a 404 page if the hash doesn't match any list"
+          ],
+          "dependencies": ["DASH-001", "SCHEMA-007"],
+          "verified": false
+        },
+        {
+          "id": "LIST-002",
+          "title": "Add a new todo item",
+          "description": "Allow adding new todo items to a list with at minimum a title.",
+          "requirements": [
+            "An input field (or form) at the top or bottom of the list for quick item entry",
+            "Title is required — cannot submit empty",
+            "On submit: create a TodoItem with status OPEN, createdByEmail set to the authenticated user's email (or 'anonymous' if accessed via share link without auth)",
+            "New item appears in the list immediately without full page reload",
+            "Focus returns to the input after adding for rapid entry"
+          ],
+          "corner_cases": [
+            "Whitespace-only titles should be rejected",
+            "Very long titles should be handled gracefully (truncate display, store full value)"
+          ],
+          "dependencies": ["LIST-001"],
+          "verified": false
+        },
+        {
+          "id": "LIST-003",
+          "title": "Edit todo item title",
+          "description": "Allow inline editing of a todo item's title.",
+          "requirements": [
+            "Clicking on a todo item's title makes it editable (inline input)",
+            "Pressing Enter or clicking away saves the change",
+            "Pressing Escape cancels the edit and reverts to original title",
+            "Empty title is not allowed — revert to original if cleared",
+            "Update is persisted to the database"
+          ],
+          "dependencies": ["LIST-002"],
+          "verified": false
+        },
+        {
+          "id": "LIST-004",
+          "title": "Edit todo item description",
+          "description": "Allow editing a longer description on a todo item.",
+          "requirements": [
+            "Description is shown when the item is expanded (not visible by default — see UX note)",
+            "A text area allows entering/editing the description",
+            "Description is optional — can be left empty",
+            "Changes are persisted on blur or explicit save"
+          ],
+          "dependencies": ["LIST-002"],
+          "verified": false
+        },
+        {
+          "id": "LIST-005",
+          "title": "Toggle todo item status",
+          "description": "Allow marking a todo item as completed or reopening it.",
+          "requirements": [
+            "A checkbox or toggle next to each item",
+            "Clicking it toggles between OPEN and COMPLETED status",
+            "Completed items should have a visual indicator (strikethrough, dimmed, or similar)",
+            "Status change is persisted immediately",
+            "Completed items remain in the list (not auto-archived)"
+          ],
+          "dependencies": ["LIST-002"],
+          "verified": false
+        },
+        {
+          "id": "LIST-006",
+          "title": "Delete a todo item",
+          "description": "Allow removing a todo item from a list.",
+          "requirements": [
+            "A delete button/icon on each item (visible on hover or in expanded view)",
+            "Show a confirmation for deletion (or support undo)",
+            "Item is permanently removed from the database",
+            "Item disappears from the list immediately"
+          ],
+          "dependencies": ["LIST-002"],
+          "verified": false
+        },
+        {
+          "id": "LIST-007",
+          "title": "Archive completed items",
+          "description": "Allow manually archiving completed items to declutter the list.",
+          "requirements": [
+            "A button to 'Archive completed items' — only visible when there are completed items",
+            "On click: set status to ARCHIVED for all COMPLETED items in the list",
+            "Archived items are hidden from the main list view",
+            "A separate 'View archive' section or toggle shows archived items",
+            "Individual items can be unarchived (set back to OPEN)"
+          ],
+          "corner_cases": [
+            "Archiving when no items are completed should be a no-op (button hidden or disabled)",
+            "Unarchiving an item returns it to the main list with OPEN status"
+          ],
+          "dependencies": ["LIST-005"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "DETAIL",
+      "name": "Todo Item Optional Fields",
+      "priority": 6,
+      "description": "Optional metadata fields on todo items. These should be unobtrusive in the UI.",
+      "tasks": [
+        {
+          "id": "DETAIL-001",
+          "title": "Expandable item detail view",
+          "description": "Create an expand/collapse UI for each todo item to show optional fields.",
+          "requirements": [
+            "Each item can be expanded to reveal: description, priority, due date, tags",
+            "Default state is collapsed — only title, checkbox, and set priority/due date indicators visible",
+            "Clicking the item (not the checkbox) expands it",
+            "Only one item expanded at a time, or allow multiple (choose based on UX feel)",
+            "Smooth expand/collapse animation"
+          ],
+          "dependencies": ["LIST-002"],
+          "verified": false
+        },
+        {
+          "id": "DETAIL-002",
+          "title": "Set and change priority",
+          "description": "Allow setting a priority level on a todo item.",
+          "requirements": [
+            "Priority options: Low, Medium, High (or unset/none)",
+            "A dropdown or button group in the expanded item view",
+            "Priority can be changed or cleared at any time",
+            "When set, show a small priority indicator on the collapsed item (e.g., colored dot or icon)",
+            "Change is persisted immediately"
+          ],
+          "dependencies": ["DETAIL-001"],
+          "verified": false
+        },
+        {
+          "id": "DETAIL-003",
+          "title": "Set and change due date",
+          "description": "Allow setting a deadline on a todo item.",
+          "requirements": [
+            "A date picker in the expanded item view",
+            "Due date can be set, changed, or cleared",
+            "When set, show the due date on the collapsed item",
+            "Overdue items (due date in the past, not completed) should have a visual warning (e.g., red text)",
+            "Change is persisted immediately"
+          ],
+          "corner_cases": [
+            "Due dates in the past should be allowed (user may be logging already-late tasks)",
+            "Timezone handling: store as UTC, display in user's local timezone"
+          ],
+          "dependencies": ["DETAIL-001"],
+          "verified": false
+        },
+        {
+          "id": "DETAIL-004",
+          "title": "Manage tags within a list",
+          "description": "Allow creating, viewing, and deleting tags that are scoped to a specific list.",
+          "requirements": [
+            "Tags are per-list (not global across user's lists)",
+            "A way to create new tags with a name and optional color",
+            "A way to delete existing tags from the list",
+            "Deleting a tag removes it from all items in that list",
+            "Tag names must be unique within a list"
+          ],
+          "corner_cases": [
+            "Empty or whitespace-only tag names should be rejected",
+            "Duplicate tag name within the same list should show an error"
+          ],
+          "dependencies": ["SCHEMA-004"],
+          "verified": false
+        },
+        {
+          "id": "DETAIL-005",
+          "title": "Add and remove tags on a todo item",
+          "description": "Allow tagging and untagging todo items with existing list tags.",
+          "requirements": [
+            "In the expanded item view, show a tag selector with available list tags",
+            "User can add one or more tags to an item",
+            "User can remove tags from an item",
+            "Tags on an item are shown as small chips/badges in both collapsed and expanded views",
+            "Changes are persisted immediately"
+          ],
+          "dependencies": ["DETAIL-004", "DETAIL-001"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "SHARE",
+      "name": "Sharing & Collaboration",
+      "priority": 7,
+      "description": "Features for sharing lists via URL and managing collaborators.",
+      "tasks": [
+        {
+          "id": "SHARE-001",
+          "title": "Copy shareable URL",
+          "description": "Allow users to copy the list's shareable hash URL to their clipboard.",
+          "requirements": [
+            "A 'Share' or 'Copy link' button on the list view",
+            "Clicking it copies the full URL (e.g., https://app.example.com/list/a3f9b2c1) to clipboard",
+            "Show brief feedback: 'Link copied!' tooltip or toast",
+            "The URL is the same hash URL the list is already accessible at"
+          ],
+          "dependencies": ["LIST-001"],
+          "verified": false
+        },
+        {
+          "id": "SHARE-002",
+          "title": "Access shared list without authentication",
+          "description": "Allow anyone with the hash URL to view and edit the list without logging in.",
+          "requirements": [
+            "Navigating to /list/[hash] without a session cookie still shows the full list",
+            "Unauthenticated users can: view items, add items, edit items, complete items, delete items",
+            "Items created by unauthenticated users have createdByEmail set to 'anonymous'",
+            "Unauthenticated users cannot: manage collaborators, delete the list",
+            "No login prompt or barrier — the list just works"
+          ],
+          "corner_cases": [
+            "An unauthenticated user who later logs in should see the list on their dashboard only if they've been explicitly added as a collaborator"
+          ],
+          "dependencies": ["LIST-001"],
+          "verified": false
+        },
+        {
+          "id": "SHARE-003",
+          "title": "Add collaborator by email",
+          "description": "Allow the list owner to add collaborators by entering their email address.",
+          "requirements": [
+            "A 'Manage collaborators' section in the list view (visible only to owner and existing collaborators)",
+            "An input to enter an email address and add them as a collaborator",
+            "If the email doesn't have a User record, create one implicitly",
+            "The list then appears on the collaborator's dashboard",
+            "Show confirmation that the collaborator was added"
+          ],
+          "corner_cases": [
+            "Adding the list owner's own email should show an error: 'You already own this list'",
+            "Adding an email that's already a collaborator should show: 'Already a collaborator'",
+            "Email should be lowercased and trimmed"
+          ],
+          "dependencies": ["LIST-001", "SCHEMA-005"],
+          "verified": false
+        },
+        {
+          "id": "SHARE-004",
+          "title": "Remove collaborator",
+          "description": "Allow the list owner to remove a collaborator from the list.",
+          "requirements": [
+            "Each collaborator in the list has a remove button (visible to the list owner)",
+            "On click: remove the Collaborator record",
+            "The list no longer appears on the removed user's dashboard",
+            "The removed user can still access the list via the hash URL (as an unauthenticated user would)"
+          ],
+          "dependencies": ["SHARE-003"],
+          "verified": false
+        },
+        {
+          "id": "SHARE-005",
+          "title": "Set and edit collaborator nickname",
+          "description": "Allow the list owner to set a display nickname for each collaborator.",
+          "requirements": [
+            "Each collaborator entry shows their email and an editable nickname field",
+            "Nickname is optional — defaults to empty (show email only)",
+            "Nickname is per-list (same user can have different nicknames on different lists)",
+            "Nickname is visible wherever the collaborator is referenced (e.g., item's createdBy)",
+            "Changes are persisted immediately"
+          ],
+          "dependencies": ["SHARE-003"],
+          "verified": false
+        },
+        {
+          "id": "SHARE-007",
+          "title": "Notify collaborators when items are added",
+          "description": "Send email notifications to collaborators when new items are added to a shared list.",
+          "requirements": [
+            "When a new item is added to a list that has collaborators, send an email to all collaborators except the person who added the item",
+            "Email includes: the item title (or summary) and a direct link to the list",
+            "Notifications should be batched/debounced — if multiple items are added within a short window (e.g., 2 minutes), send one summary email instead of multiple",
+            "Use Resend for email delivery (same as magic link emails)",
+            "In development (no RESEND_API_KEY), log the notification to the server console",
+            "The list owner is also notified if a collaborator adds an item (owner is treated like any other participant)"
+          ],
+          "corner_cases": [
+            "If an unauthenticated user (via share link) adds an item, notifications still go out but 'added by' shows 'anonymous'",
+            "If a list has no collaborators, no notifications are sent",
+            "Respect Resend free tier limits (100 emails/day) — consider a daily notification cap per list"
+          ],
+          "dependencies": ["SHARE-003", "LIST-002"],
+          "verified": false
+        },
+        {
+          "id": "SHARE-006",
+          "title": "Display collaborator list",
+          "description": "Show all collaborators on a list with their emails and nicknames.",
+          "requirements": [
+            "A visible section in the list view showing all collaborators",
+            "Each entry shows: nickname (if set) and email",
+            "The list owner is shown separately (e.g., 'Owner: user@example.com')",
+            "Collaborator management controls (add, remove, nickname) are visible only to the list owner"
+          ],
+          "dependencies": ["SHARE-003"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "FILTER",
+      "name": "Filtering & Sorting",
+      "priority": 8,
+      "description": "Allow users to filter and sort todo items within a list.",
+      "tasks": [
+        {
+          "id": "FILTER-001",
+          "title": "Filter by status",
+          "description": "Filter todo items by their status.",
+          "requirements": [
+            "Filter options: All, Open, Completed, Archived",
+            "Default: show Open items (hide archived)",
+            "Selecting a filter immediately updates the displayed items",
+            "Show item count per status"
+          ],
+          "dependencies": ["LIST-007"],
+          "verified": false
+        },
+        {
+          "id": "FILTER-002",
+          "title": "Filter by priority",
+          "description": "Filter todo items by priority level.",
+          "requirements": [
+            "Filter options: All, High, Medium, Low, Unset",
+            "Can be combined with status filter",
+            "Selecting a filter immediately updates the displayed items"
+          ],
+          "dependencies": ["DETAIL-002"],
+          "verified": false
+        },
+        {
+          "id": "FILTER-003",
+          "title": "Filter by tag",
+          "description": "Filter todo items by one or more tags.",
+          "requirements": [
+            "Show all available tags for the list as filter chips",
+            "Clicking a tag filters to items that have that tag",
+            "Multiple tags can be selected (show items that have ANY of the selected tags)",
+            "Can be combined with other filters"
+          ],
+          "dependencies": ["DETAIL-005"],
+          "verified": false
+        },
+        {
+          "id": "FILTER-004",
+          "title": "Filter by due date range",
+          "description": "Filter todo items by their due date.",
+          "requirements": [
+            "Filter options: All, Overdue, Due today, Due this week, Due this month, No due date",
+            "Can be combined with other filters",
+            "Overdue = due date in the past and status is not COMPLETED or ARCHIVED"
+          ],
+          "dependencies": ["DETAIL-003"],
+          "verified": false
+        },
+        {
+          "id": "FILTER-005",
+          "title": "Sort items",
+          "description": "Allow sorting todo items by various fields.",
+          "requirements": [
+            "Sort options: Priority (high first), Due date (soonest first), Creation date (newest first), Status",
+            "Default sort: creation date (newest first)",
+            "Sort direction can be toggled (ascending/descending)",
+            "Sorting works in combination with active filters"
+          ],
+          "dependencies": ["LIST-001"],
+          "verified": false
+        },
+        {
+          "id": "FILTER-006",
+          "title": "Persist filter and sort state in URL",
+          "description": "Store the current filter and sort configuration in URL query parameters so it can be bookmarked or shared.",
+          "requirements": [
+            "Filter and sort selections are reflected in URL query params (e.g., ?status=open&priority=high&sort=dueDate)",
+            "Loading a URL with filter params applies those filters automatically",
+            "Changing filters updates the URL without a full page reload",
+            "Default filters produce a clean URL (no redundant params)"
+          ],
+          "dependencies": ["FILTER-001", "FILTER-002", "FILTER-003", "FILTER-004", "FILTER-005"],
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "UX",
+      "name": "UX & Responsiveness",
+      "priority": 9,
+      "description": "Polish the user experience and ensure the app works well on all screen sizes.",
+      "tasks": [
+        {
+          "id": "UX-001",
+          "title": "Responsive layout",
+          "description": "Ensure all pages work well on both mobile and desktop viewports.",
+          "requirements": [
+            "Landing page, dashboard, and list view are fully usable on mobile (320px+)",
+            "No horizontal scrolling on any viewport",
+            "Touch-friendly tap targets (min 44px)",
+            "Appropriate font sizes and spacing for mobile",
+            "Desktop layout makes good use of available space"
+          ],
+          "dependencies": ["LIST-001", "DASH-001", "AUTH-001"],
+          "verified": false
+        },
+        {
+          "id": "UX-002",
+          "title": "Loading states",
+          "description": "Show appropriate loading indicators during async operations.",
+          "requirements": [
+            "Loading spinner or skeleton while fetching dashboard lists",
+            "Loading spinner or skeleton while fetching list items",
+            "Disabled state on buttons while submitting (prevent double-clicks)",
+            "Optimistic UI updates where appropriate (e.g., checking off a todo)"
+          ],
+          "dependencies": ["DASH-001", "LIST-001"],
+          "verified": false
+        },
+        {
+          "id": "UX-003",
+          "title": "Error handling and user feedback",
+          "description": "Show clear error messages and confirmations for user actions.",
+          "requirements": [
+            "Toast or notification system for success messages (e.g., 'List created', 'Item deleted')",
+            "Toast or inline error for failed operations (e.g., 'Failed to save, please try again')",
+            "Form validation errors shown inline next to the relevant field",
+            "Network error handling: show a message if the server is unreachable"
+          ],
+          "dependencies": ["DASH-001", "LIST-001"],
+          "verified": false
+        }
+      ]
+    }
+  ]
+}
