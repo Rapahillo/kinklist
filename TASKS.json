@@ -49,7 +49,7 @@
             ".env.local works with the local Docker PostgreSQL instance"
           ],
           "dependencies": ["SETUP-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SETUP-004",
