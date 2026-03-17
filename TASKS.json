@@ -153,7 +153,7 @@
             "Deleting a TodoList cascades to delete its Tags"
           ],
           "dependencies": ["SCHEMA-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SCHEMA-005",

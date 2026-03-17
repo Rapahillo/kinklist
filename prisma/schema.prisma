@@ -29,6 +29,7 @@ model TodoList {
 
   owner User      @relation(fields: [ownerId], references: [id])
   items TodoItem[]
+  tags  Tag[]
 
   @@index([hash])
 }
@@ -58,4 +59,17 @@ model TodoItem {
   updatedAt      DateTime          @updatedAt
 
   list TodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  tags Tag[]
+}
+
+model Tag {
+  id     String  @id @default(uuid()) @db.Uuid
+  name   String
+  color  String?
+  listId String  @db.Uuid
+
+  list  TodoList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+  items TodoItem[]
+
+  @@unique([name, listId])
 }
