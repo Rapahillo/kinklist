@@ -245,7 +245,7 @@
             "Return the same success response even for invalid emails to prevent enumeration"
           ],
           "dependencies": ["SCHEMA-007"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "AUTH-003",
@@ -269,7 +269,7 @@
             "Race condition: two requests with the same token — only the first should succeed (use atomic update)"
           ],
           "dependencies": ["AUTH-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "AUTH-004",
@@ -285,7 +285,7 @@
             "Protected API routes return 401 if not authenticated"
           ],
           "dependencies": ["AUTH-003"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "AUTH-005",
@@ -299,7 +299,29 @@
             "A logout button is visible on the dashboard and list views"
           ],
           "dependencies": ["AUTH-004"],
-          "verified": false
+          "verified": true
+        },
+        {
+          "id": "AUTH-006",
+          "title": "Delete account and all user data",
+          "description": "Allow authenticated users to permanently delete their account and all associated data from the database.",
+          "requirements": [
+            "Route: DELETE /api/auth/account",
+            "Requires authentication — return 401 if not logged in",
+            "Delete all data associated with the user: sessions, magic links, owned todo lists (with cascading items, tags, collaborators), collaborator entries on other users' lists, and the User record itself",
+            "Clear the session cookie after deletion",
+            "A 'Delete account' button is visible on the dashboard (e.g., in settings or profile area)",
+            "Show a confirmation dialog requiring the user to type their email to confirm",
+            "After deletion, redirect to /"
+          ],
+          "corner_cases": [
+            "Collaborators on the user's owned lists lose access when those lists are cascade-deleted",
+            "The user's collaborator entries on other users' lists should be removed but those lists remain intact",
+            "All active sessions for the user should be deleted, not just the current one",
+            "Ensure the deletion is atomic — use a database transaction so partial deletes don't occur"
+          ],
+          "dependencies": ["AUTH-004"],
+          "verified": true
         }
       ]
     },
