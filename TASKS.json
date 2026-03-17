@@ -80,7 +80,7 @@
             "Prisma Client must be generated during the Vercel build — add `prisma generate` to the build script if needed",
             "Neon connection may require SSL — ensure the connection string includes ?sslmode=require"
           ],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SETUP-006",
