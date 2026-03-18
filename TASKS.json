@@ -162,13 +162,13 @@
           "title": "Create TodoItem model",
           "description": "Define the TodoItem model with all required and optional fields.",
           "requirements": [
-            "Fields: id (UUID), title (required), description (optional, text), status (enum: OPEN, COMPLETED, ARCHIVED), priority (optional enum: LOW, MEDIUM, HIGH), dueDate (optional datetime), listId (FK to TodoList), createdByEmail (string — email of creator; will be migrated to createdByUserId FK in SEC-004), createdAt, updatedAt",
+            "Fields: id (UUID), title (required), description (optional, text), status (enum: OPEN, COMPLETED, ARCHIVED), priority (optional enum: LOW, MEDIUM, HIGH), dueDate (optional datetime), listId (FK to TodoList), createdByUserId (FK to User — tracks who created the item without exposing email as PII), createdAt, updatedAt",
             "status defaults to OPEN",
             "Relation: a TodoList has many TodoItems",
             "Deleting a TodoList cascades to delete its TodoItems"
           ],
           "dependencies": ["SCHEMA-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SCHEMA-004",
@@ -413,21 +413,17 @@
         },
         {
           "id": "SEC-004",
-          "title": "Replace createdByEmail with createdByUserId",
-          "description": "Change TodoItem.createdByEmail (string) to createdByUserId (FK to User). Raw emails in the items table expose PII to all list participants. Use userId internally and resolve display names (nickname or 'You') at the API response layer.",
+          "title": "Enforce PII-safe display of item creators",
+          "description": "The schema migration is complete (createdByUserId FK is in place via SCHEMA-003). This task covers the application-layer work: resolving createdByUserId to safe display names in API responses.",
           "requirements": [
-            "Add createdByUserId as a FK to User on TodoItem model",
-            "Remove createdByEmail field from TodoItem model",
-            "Create a Prisma migration for this schema change",
             "Update all item creation logic to set createdByUserId from the authenticated user",
             "In API responses, resolve createdByUserId to the collaborator's nickname (if set) or a generic label — never expose raw email to non-owners",
             "Only the list owner can see collaborator emails; other collaborators see nicknames only"
           ],
           "corner_cases": [
-            "Existing items with createdByEmail need a data migration to populate createdByUserId",
             "If no nickname is set for a collaborator, show a generic label like 'Collaborator' rather than their email"
           ],
-          "dependencies": ["SCHEMA-003", "SCHEMA-005"],
+          "dependencies": ["SCHEMA-003", "SCHEMA-005", "SEC-003"],
           "verified": false
         },
         {

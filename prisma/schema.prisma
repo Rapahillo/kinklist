@@ -17,6 +17,7 @@ model User {
   email          String         @unique
   createdAt      DateTime       @default(now())
   todoLists      TodoList[]
+  createdItems   TodoItem[]
   collaborations Collaborator[]
   sessions       Session[]
 }
@@ -72,19 +73,20 @@ enum TodoItemPriority {
 }
 
 model TodoItem {
-  id             String            @id @default(uuid()) @db.Uuid
-  title          String
-  description    String?           @db.Text
-  status         TodoItemStatus    @default(OPEN)
-  priority       TodoItemPriority?
-  dueDate        DateTime?
-  listId         String            @db.Uuid
-  createdByEmail String
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id              String            @id @default(uuid()) @db.Uuid
+  title           String
+  description     String?           @db.Text
+  status          TodoItemStatus    @default(OPEN)
+  priority        TodoItemPriority?
+  dueDate         DateTime?
+  listId          String            @db.Uuid
+  createdByUserId String            @db.Uuid
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
-  list TodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  tags Tag[]
+  list      TodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  createdBy User     @relation(fields: [createdByUserId], references: [id])
+  tags      Tag[]
 }
 
 model Tag {
