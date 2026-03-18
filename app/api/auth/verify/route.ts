@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, verifyIpLimiter } from "@/lib/rate-limit";
 
-const SESSION_EXPIRY_DAYS = 7;
+const SESSION_EXPIRY_DAYS = 3;
 
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
