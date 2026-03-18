@@ -1,20 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Middleware to protect routes that require authentication.
- * Checks for the presence of a session cookie — full DB validation
- * happens in getAuthenticatedUser() within server components/route handlers.
+ * Apply security headers to all responses.
  */
-export function middleware(request: NextRequest) {
-  const sessionToken = request.cookies.get("session")?.value;
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains"
+  );
+  response.headers.set(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+  );
+  response.headers.set("X-Frame-Options", "DENY");
+  return response;
+}
 
-  if (!sessionToken) {
-    return NextResponse.redirect(new URL("/", request.url));
+/**
+ * Routes that require an authenticated session cookie.
+ */
+const PROTECTED_PREFIXES = ["/dashboard"];
+
+function isProtectedRoute(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
+  );
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Auth guard for protected routes
+  if (isProtectedRoute(pathname)) {
+    const sessionToken = request.cookies.get("session")?.value;
+    if (!sessionToken) {
+      const response = NextResponse.redirect(new URL("/", request.url));
+      return applySecurityHeaders(response);
+    }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  return applySecurityHeaders(response);
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
