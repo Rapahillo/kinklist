@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getClientIp, verifyIpLimiter } from "@/lib/rate-limit";
 
 const SESSION_EXPIRY_DAYS = 7;
 
 export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("token");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  // Rate limit by IP to prevent token brute-force
+  const ip = getClientIp(request);
+  const ipCheck = verifyIpLimiter.check(ip);
+  if (!ipCheck.allowed) {
+    return NextResponse.redirect(`${appUrl}/?error=rate-limited`);
+  }
+
+  const token = request.nextUrl.searchParams.get("token");
 
   if (!token) {
     return NextResponse.redirect(`${appUrl}/?error=invalid`);

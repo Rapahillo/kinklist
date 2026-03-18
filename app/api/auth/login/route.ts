@@ -2,11 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+import {
+  getClientIp,
+  loginEmailLimiter,
+  loginIpLimiter,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAGIC_LINK_EXPIRY_MINUTES = 15;
 
 export async function POST(request: NextRequest) {
+  // Rate limit by IP first
+  const ip = getClientIp(request);
+  const ipCheck = loginIpLimiter.check(ip);
+  if (!ipCheck.allowed) {
+    return rateLimitResponse(ipCheck.retryAfterSeconds);
+  }
+
   let body: { email?: string };
   try {
     body = await request.json();
@@ -26,6 +39,13 @@ export async function POST(request: NextRequest) {
       { message: "Magic link sent" },
       { status: 200 }
     );
+  }
+
+  // Rate limit by email
+  const emailCheck = loginEmailLimiter.check(email);
+  if (!emailCheck.allowed) {
+    // Same response body as success to prevent email enumeration
+    return rateLimitResponse(emailCheck.retryAfterSeconds);
   }
 
   // Create user if they don't exist (implicit registration)
