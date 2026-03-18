@@ -12,7 +12,7 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   );
   response.headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
   );
   response.headers.set("X-Frame-Options", "DENY");
   return response;
