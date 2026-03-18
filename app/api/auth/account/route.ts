@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logAudit } from "@/lib/audit";
 
 export async function DELETE(request: Request) {
   const result = await requireAuth();
@@ -31,6 +32,12 @@ export async function DELETE(request: Request) {
 
     // Delete the user
     await tx.user.delete({ where: { id: user.id } });
+  });
+
+  // Audit log survives user deletion (no FK cascade)
+  void logAudit({
+    action: "account.delete",
+    metadata: { email: user.email },
   });
 
   const cookieStore = await cookies();

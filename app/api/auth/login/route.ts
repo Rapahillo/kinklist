@@ -8,6 +8,7 @@ import {
   loginIpLimiter,
   rateLimitResponse,
 } from "@/lib/rate-limit";
+import { logAudit } from "@/lib/audit";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAGIC_LINK_EXPIRY_MINUTES = 15;
@@ -85,6 +86,8 @@ export async function POST(request: NextRequest) {
   } else {
     console.log(`\n[DEV] Magic link for ${email}: ${magicLinkUrl}\n`);
   }
+
+  void logAudit({ action: "magic_link.request", metadata: { ip, email } });
 
   return NextResponse.json(
     { message: "Magic link sent" },

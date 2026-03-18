@@ -114,3 +114,17 @@ model Collaborator {
 
   @@unique([listId, userId])
 }
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  action     String
+  targetType String?
+  targetId   String?  @db.Uuid
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

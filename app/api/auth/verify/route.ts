@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, verifyIpLimiter } from "@/lib/rate-limit";
+import { logAudit } from "@/lib/audit";
 
 const SESSION_EXPIRY_DAYS = 3;
 
@@ -74,6 +75,12 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       expiresAt,
     },
+  });
+
+  void logAudit({
+    userId: user.id,
+    action: "session.create",
+    metadata: { ip },
   });
 
   // Set the session cookie

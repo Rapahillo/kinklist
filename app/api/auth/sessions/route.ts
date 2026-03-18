@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 /**
  * GET /api/auth/sessions — List all active sessions for the current user.
@@ -76,6 +77,8 @@ export async function DELETE(request: Request) {
       },
     });
   }
+
+  void logAudit({ userId: user.id, action: "session.delete_all" });
 
   return NextResponse.json({ success: true });
 }
