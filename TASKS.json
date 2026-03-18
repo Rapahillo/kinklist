@@ -162,13 +162,13 @@
           "title": "Create TodoItem model",
           "description": "Define the TodoItem model with all required and optional fields.",
           "requirements": [
-            "Fields: id (UUID), title (required), description (optional, text), status (enum: OPEN, COMPLETED, ARCHIVED), priority (optional enum: LOW, MEDIUM, HIGH), dueDate (optional datetime), listId (FK to TodoList), createdByEmail (string — email of creator), createdAt, updatedAt",
+            "Fields: id (UUID), title (required), description (optional, text), status (enum: OPEN, COMPLETED, ARCHIVED), priority (optional enum: LOW, MEDIUM, HIGH), dueDate (optional datetime), listId (FK to TodoList), createdByEmail (string — email of creator; will be migrated to createdByUserId FK in SEC-004), createdAt, updatedAt",
             "status defaults to OPEN",
             "Relation: a TodoList has many TodoItems",
             "Deleting a TodoList cascades to delete its TodoItems"
           ],
           "dependencies": ["SCHEMA-002"],
-          "verified": true
+          "verified": false
         },
         {
           "id": "SCHEMA-004",
@@ -354,9 +354,180 @@
       ]
     },
     {
+      "id": "SEC",
+      "name": "Security & Privacy",
+      "priority": 4,
+      "description": "Implement security measures to protect highly sensitive PII and personal data. Given the nature of the application (sexual fantasies and kinks), data leaks could cause serious personal harm. Security must be in place before building data-serving endpoints.",
+      "tasks": [
+        {
+          "id": "SEC-001",
+          "title": "Add security headers",
+          "description": "Configure security headers via Next.js middleware or next.config to harden the application against common web attacks and prevent hash URL leakage.",
+          "requirements": [
+            "Set Referrer-Policy: no-referrer — critical to prevent hash URLs leaking via referer headers to external resources",
+            "Set X-Content-Type-Options: nosniff",
+            "Set Strict-Transport-Security: max-age=31536000; includeSubDomains (HTTPS only)",
+            "Set Content-Security-Policy with restrictive defaults (default-src 'self', script-src 'self', style-src 'self' 'unsafe-inline')",
+            "Set X-Frame-Options: DENY to prevent clickjacking",
+            "Verify headers are present on all responses (pages and API routes)"
+          ],
+          "dependencies": ["SETUP-006"],
+          "verified": false
+        },
+        {
+          "id": "SEC-002",
+          "title": "Require authentication for hash URL access",
+          "description": "Change the sharing model so that hash URLs require authentication. The hash URL serves as an invitation mechanism, not an open-access pass. This prevents leaked URLs from exposing sensitive content to anyone.",
+          "requirements": [
+            "Navigating to /list/[hash] without a valid session redirects to / with a prompt to log in",
+            "After login, if the user is the owner or a collaborator, they see the list",
+            "After login, if the user is NOT the owner or collaborator, show a 403 'Access denied' page",
+            "The hash URL is used when adding collaborators (owner shares the link, recipient logs in to access)",
+            "Store the intended destination URL so the user is redirected back after login",
+            "Hash URLs must be at least 16 characters of crypto.randomBytes for resistance to guessing"
+          ],
+          "corner_cases": [
+            "A user who receives a hash URL but is not yet a collaborator should see a 'Request access' or 'Access denied' message — they cannot self-join",
+            "The redirect-after-login flow must preserve the original hash URL"
+          ],
+          "dependencies": ["AUTH-004"],
+          "verified": false
+        },
+        {
+          "id": "SEC-003",
+          "title": "Server-side authorization on all data endpoints",
+          "description": "Every API route that reads or writes list/item/tag/collaborator data must verify the requesting user is authorized for that specific resource. Being authenticated is not sufficient — the user must be the owner or a collaborator of the specific list.",
+          "requirements": [
+            "Create a reusable authorization helper: authorizeListAccess(userId, listHash) → { list, role: 'owner' | 'collaborator' } | null",
+            "Every list/item/tag/collaborator API route calls this helper and returns 403 if unauthorized",
+            "Owner-only operations (delete list, manage collaborators) additionally check role === 'owner'",
+            "All database queries are scoped to authorized lists — never trust client-provided IDs alone",
+            "Write integration tests verifying: owner can access, collaborator can access, non-collaborator gets 403, unauthenticated gets 401"
+          ],
+          "corner_cases": [
+            "A user who was removed as collaborator should immediately lose access",
+            "Concurrent requests during collaborator removal must not leak data"
+          ],
+          "dependencies": ["AUTH-004", "SCHEMA-005"],
+          "verified": false
+        },
+        {
+          "id": "SEC-004",
+          "title": "Replace createdByEmail with createdByUserId",
+          "description": "Change TodoItem.createdByEmail (string) to createdByUserId (FK to User). Raw emails in the items table expose PII to all list participants. Use userId internally and resolve display names (nickname or 'You') at the API response layer.",
+          "requirements": [
+            "Add createdByUserId as a FK to User on TodoItem model",
+            "Remove createdByEmail field from TodoItem model",
+            "Create a Prisma migration for this schema change",
+            "Update all item creation logic to set createdByUserId from the authenticated user",
+            "In API responses, resolve createdByUserId to the collaborator's nickname (if set) or a generic label — never expose raw email to non-owners",
+            "Only the list owner can see collaborator emails; other collaborators see nicknames only"
+          ],
+          "corner_cases": [
+            "Existing items with createdByEmail need a data migration to populate createdByUserId",
+            "If no nickname is set for a collaborator, show a generic label like 'Collaborator' rather than their email"
+          ],
+          "dependencies": ["SCHEMA-003", "SCHEMA-005"],
+          "verified": false
+        },
+        {
+          "id": "SEC-005",
+          "title": "Rate limiting on authentication endpoints",
+          "description": "Add rate limiting to prevent email bombing, brute-force token guessing, and abuse of auth endpoints.",
+          "requirements": [
+            "Rate limit POST /api/auth/login: max 3 requests per email per hour, max 10 requests per IP per hour",
+            "Rate limit GET /api/auth/verify: max 10 attempts per IP per 15 minutes (prevent token brute-force)",
+            "Return 429 Too Many Requests with Retry-After header when limit is exceeded",
+            "Use in-memory rate limiting for v1 (consider Redis for production scale later)",
+            "Rate limiting must not leak whether an email exists (same 429 response regardless)"
+          ],
+          "corner_cases": [
+            "Serverless cold starts may reset in-memory counters — acceptable for v1 but document the limitation",
+            "Consider using Vercel's built-in rate limiting or Edge Middleware for production"
+          ],
+          "dependencies": ["AUTH-002", "AUTH-003"],
+          "verified": false
+        },
+        {
+          "id": "SEC-006",
+          "title": "Input validation and sanitization",
+          "description": "Validate and sanitize all user inputs server-side to prevent XSS, injection, and data integrity issues.",
+          "requirements": [
+            "Validate all API inputs server-side (not just client-side): list titles, item titles, descriptions, nicknames, emails, tag names",
+            "Enforce maximum field lengths (e.g., title: 500 chars, description: 5000 chars, nickname: 100 chars, tag name: 50 chars)",
+            "Sanitize HTML/script content in text fields to prevent stored XSS",
+            "Reject requests with invalid or missing required fields with 400 status and descriptive error",
+            "Create a shared validation utility used by all API routes for consistency"
+          ],
+          "dependencies": ["SETUP-006"],
+          "verified": false
+        },
+        {
+          "id": "SEC-007",
+          "title": "Explicit field selection in API responses",
+          "description": "Never return full database objects to the client. Always use Prisma select to return only the fields needed, preventing accidental PII leakage.",
+          "requirements": [
+            "All Prisma queries in API routes use explicit select (not include with full objects)",
+            "User emails are never included in list/item responses unless the requesting user is the list owner",
+            "Internal IDs (database UUIDs) are not exposed unless necessary — prefer hash identifiers",
+            "Collaborator lists return nickname and role only (not email) to non-owner users",
+            "Create response-shaping helpers per entity type (e.g., toListResponse, toItemResponse) that enforce field filtering based on the requesting user's role"
+          ],
+          "dependencies": ["SEC-003"],
+          "verified": false
+        },
+        {
+          "id": "SEC-008",
+          "title": "IDOR prevention in all data queries",
+          "description": "Prevent Insecure Direct Object Reference attacks by always scoping database queries to the authorized user's accessible resources.",
+          "requirements": [
+            "Never use a client-provided item/tag/collaborator ID in a query without also scoping to the parent list",
+            "All item operations verify the item belongs to a list the user has access to",
+            "All tag operations verify the tag belongs to a list the user has access to",
+            "All collaborator management operations verify the user is the list owner",
+            "Example pattern: prisma.todoItem.update({ where: { id: itemId, listId: authorizedListId } }) — never just { where: { id: itemId } }"
+          ],
+          "dependencies": ["SEC-003"],
+          "verified": false
+        },
+        {
+          "id": "SEC-009",
+          "title": "Session security improvements",
+          "description": "Harden session management given the sensitivity of the data.",
+          "requirements": [
+            "Add 'Log out all devices' functionality — delete all sessions for the current user",
+            "Reduce session TTL from 7 days to 3 days given data sensitivity",
+            "Rotate session token on sensitive actions (e.g., after adding/removing collaborators)",
+            "Add session activity tracking (lastUsedAt timestamp) to enable idle timeout detection",
+            "Show active sessions on the dashboard (creation date, last used) so users can audit access"
+          ],
+          "dependencies": ["AUTH-004", "AUTH-005"],
+          "verified": false
+        },
+        {
+          "id": "SEC-010",
+          "title": "Audit logging for sensitive actions",
+          "description": "Log security-relevant actions to enable post-incident investigation and help users detect unauthorized access.",
+          "requirements": [
+            "Log the following events with timestamp, userId, and relevant metadata: list access (view), collaborator added/removed, list created/deleted, session created/destroyed, account deleted",
+            "Store audit logs in a dedicated AuditLog database table",
+            "Do NOT log item content in audit logs (the content itself is sensitive) — only log that an action occurred",
+            "Provide an API endpoint for list owners to view access history for their lists",
+            "Audit logs are retained for 90 days, then automatically purged"
+          ],
+          "corner_cases": [
+            "Audit logs must survive list/user deletion for the retention period (do not cascade delete)",
+            "Audit log queries must be performant — index on listId and timestamp"
+          ],
+          "dependencies": ["SEC-003", "SCHEMA-007"],
+          "verified": false
+        }
+      ]
+    },
+    {
       "id": "DASH",
       "name": "Dashboard",
-      "priority": 4,
+      "priority": 5,
       "description": "The user's home screen showing all their todo lists with options to create and delete lists.",
       "tasks": [
         {
@@ -417,7 +588,7 @@
     {
       "id": "LIST",
       "name": "Todo List View",
-      "priority": 5,
+      "priority": 6,
       "description": "The main interface for viewing and interacting with a single todo list.",
       "tasks": [
         {
@@ -430,8 +601,10 @@
             "Display the list title at the top",
             "Display each item showing: title, status (checkbox), and any set optional fields",
             "If accessed by an authenticated user who owns or collaborates on the list, show full controls",
-            "If accessed via hash URL without authentication, show full edit controls (anyone with link can edit)",
-            "Show a 404 page if the hash doesn't match any list"
+            "If accessed without authentication, redirect to login with return URL preserved (SEC-002)",
+            "If accessed by an authenticated user who is NOT the owner or collaborator, show 403 page",
+            "Show a 404 page if the hash doesn't match any list",
+            "All data fetching must go through the authorization helper (SEC-003)"
           ],
           "dependencies": ["DASH-001", "SCHEMA-007"],
           "verified": false
@@ -443,7 +616,7 @@
           "requirements": [
             "An input field (or form) at the top or bottom of the list for quick item entry",
             "Title is required — cannot submit empty",
-            "On submit: create a TodoItem with status OPEN, createdByEmail set to the authenticated user's email (or 'anonymous' if accessed via share link without auth)",
+            "On submit: create a TodoItem with status OPEN, createdByUserId set to the authenticated user's ID (all users must be authenticated per SEC-002)",
             "New item appears in the list immediately without full page reload",
             "Focus returns to the input after adding for rapid entry"
           ],
@@ -531,7 +704,7 @@
     {
       "id": "DETAIL",
       "name": "Todo Item Optional Fields",
-      "priority": 6,
+      "priority": 7,
       "description": "Optional metadata fields on todo items. These should be unobtrusive in the UI.",
       "tasks": [
         {
@@ -617,7 +790,7 @@
     {
       "id": "SHARE",
       "name": "Sharing & Collaboration",
-      "priority": 7,
+      "priority": 8,
       "description": "Features for sharing lists via URL and managing collaborators.",
       "tasks": [
         {
@@ -635,19 +808,21 @@
         },
         {
           "id": "SHARE-002",
-          "title": "Access shared list without authentication",
-          "description": "Allow anyone with the hash URL to view and edit the list without logging in.",
+          "title": "Access shared list via hash URL (authenticated)",
+          "description": "Hash URLs serve as an invitation/bookmark mechanism. Users must be authenticated AND be the owner or a collaborator to view the list. This protects sensitive content from being exposed via leaked URLs.",
           "requirements": [
-            "Navigating to /list/[hash] without a session cookie still shows the full list",
-            "Unauthenticated users can: view items, add items, edit items, complete items, delete items",
-            "Items created by unauthenticated users have createdByEmail set to 'anonymous'",
-            "Unauthenticated users cannot: manage collaborators, delete the list",
-            "No login prompt or barrier — the list just works"
+            "Navigating to /list/[hash] without a session cookie redirects to / with a return URL stored (so user is redirected back after login)",
+            "After login, if the user is the owner or a collaborator, they see the full list",
+            "After login, if the user is NOT the owner or collaborator, show a 403 'You do not have access to this list' page",
+            "All list operations (view, add, edit, complete, delete items) require authentication + authorization",
+            "There is no anonymous/unauthenticated access to list content"
           ],
           "corner_cases": [
-            "An unauthenticated user who later logs in should see the list on their dashboard only if they've been explicitly added as a collaborator"
+            "A user who receives a hash URL but is not a collaborator cannot self-join — they must be added by the owner",
+            "The redirect-after-login flow must preserve the original hash URL across the magic link email flow",
+            "If a user bookmarks a hash URL and their collaborator access is later revoked, they should see 403 on next visit"
           ],
-          "dependencies": ["LIST-001"],
+          "dependencies": ["LIST-001", "SEC-002", "SEC-003"],
           "verified": false
         },
         {
@@ -709,7 +884,7 @@
             "The list owner is also notified if a collaborator adds an item (owner is treated like any other participant)"
           ],
           "corner_cases": [
-            "If an unauthenticated user (via share link) adds an item, notifications still go out but 'added by' shows 'anonymous'",
+            "All item additions are by authenticated users (per SEC-002) — 'added by' uses the collaborator's nickname or the owner label",
             "If a list has no collaborators, no notifications are sent",
             "Respect Resend free tier limits (100 emails/day) — consider a daily notification cap per list"
           ],
@@ -722,8 +897,9 @@
           "description": "Show all collaborators on a list with their emails and nicknames.",
           "requirements": [
             "A visible section in the list view showing all collaborators",
-            "Each entry shows: nickname (if set) and email",
-            "The list owner is shown separately (e.g., 'Owner: user@example.com')",
+            "For the list owner: each entry shows nickname (if set) and email",
+            "For collaborators: each entry shows nickname only — emails are hidden from non-owners (SEC-007)",
+            "The list owner is shown separately (e.g., 'Owner: [nickname]')",
             "Collaborator management controls (add, remove, nickname) are visible only to the list owner"
           ],
           "dependencies": ["SHARE-003"],
@@ -734,7 +910,7 @@
     {
       "id": "FILTER",
       "name": "Filtering & Sorting",
-      "priority": 8,
+      "priority": 9,
       "description": "Allow users to filter and sort todo items within a list.",
       "tasks": [
         {
@@ -818,7 +994,7 @@
     {
       "id": "UX",
       "name": "UX & Responsiveness",
-      "priority": 9,
+      "priority": 10,
       "description": "Polish the user experience and ensure the app works well on all screen sizes.",
       "tasks": [
         {
