@@ -21,7 +21,7 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 /**
  * Routes that require an authenticated session cookie.
  */
-const PROTECTED_PREFIXES = ["/dashboard"];
+const PROTECTED_PREFIXES = ["/dashboard", "/list"];
 
 function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
@@ -36,7 +36,20 @@ export function middleware(request: NextRequest) {
   if (isProtectedRoute(pathname)) {
     const sessionToken = request.cookies.get("session")?.value;
     if (!sessionToken) {
-      const response = NextResponse.redirect(new URL("/", request.url));
+      const redirectUrl = new URL("/", request.url);
+      const response = NextResponse.redirect(redirectUrl);
+
+      // Store intended destination so user is redirected back after login
+      if (pathname.startsWith("/list/")) {
+        response.cookies.set("redirect_after_login", pathname, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 15, // 15 minutes
+        });
+      }
+
       return applySecurityHeaders(response);
     }
   }

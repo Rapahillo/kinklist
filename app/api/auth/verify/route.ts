@@ -77,5 +77,18 @@ export async function GET(request: NextRequest) {
     path: "/",
   });
 
+  // Check for redirect-after-login (e.g., user was trying to access /list/[hash])
+  const redirectPath = cookieStore.get("redirect_after_login")?.value;
+  if (redirectPath && redirectPath.startsWith("/list/")) {
+    cookieStore.set("redirect_after_login", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      expires: new Date(0),
+      path: "/",
+    });
+    return NextResponse.redirect(`${appUrl}${redirectPath}`);
+  }
+
   return NextResponse.redirect(`${appUrl}/dashboard`);
 }
