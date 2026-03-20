@@ -539,7 +539,7 @@
             "Empty state: friendly message when the user has no lists yet"
           ],
           "dependencies": ["AUTH-004", "SCHEMA-007"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "DASH-002",
@@ -558,7 +558,7 @@
             "Hash collision (extremely unlikely but handle): regenerate if the hash already exists"
           ],
           "dependencies": ["DASH-001"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "DASH-003",
@@ -577,7 +577,7 @@
             "Deleting a list that no longer exists returns 404 gracefully"
           ],
           "dependencies": ["DASH-001"],
-          "verified": false
+          "verified": true
         }
       ]
     },
