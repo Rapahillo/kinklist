@@ -44,6 +44,13 @@ export async function GET(request: NextRequest) {
         targetId: list.id,
         createdAt: { gt: retentionCutoff },
       },
+      select: {
+        id: true,
+        action: true,
+        userId: true,
+        metadata: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,

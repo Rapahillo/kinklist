@@ -26,7 +26,12 @@ export async function getAuthenticatedUser(): Promise<User | null> {
 
   const session = await prisma.session.findUnique({
     where: { token: sessionToken },
-    include: { user: true },
+    select: {
+      id: true,
+      expiresAt: true,
+      lastUsedAt: true,
+      user: true,
+    },
   });
 
   if (!session || session.expiresAt < new Date()) return null;
