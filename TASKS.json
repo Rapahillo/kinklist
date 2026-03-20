@@ -372,7 +372,7 @@
             "Verify headers are present on all responses (pages and API routes)"
           ],
           "dependencies": ["SETUP-006"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-002",
@@ -391,7 +391,7 @@
             "The redirect-after-login flow must preserve the original hash URL"
           ],
           "dependencies": ["AUTH-004"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-003",
@@ -409,7 +409,7 @@
             "Concurrent requests during collaborator removal must not leak data"
           ],
           "dependencies": ["AUTH-004", "SCHEMA-005"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-004",
@@ -424,7 +424,7 @@
             "If no nickname is set for a collaborator, show a generic label like 'Collaborator' rather than their email"
           ],
           "dependencies": ["SCHEMA-003", "SCHEMA-005", "SEC-003"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-005",
@@ -442,7 +442,7 @@
             "Consider using Vercel's built-in rate limiting or Edge Middleware for production"
           ],
           "dependencies": ["AUTH-002", "AUTH-003"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-006",
@@ -456,7 +456,7 @@
             "Create a shared validation utility used by all API routes for consistency"
           ],
           "dependencies": ["SETUP-006"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-007",
@@ -470,7 +470,7 @@
             "Create response-shaping helpers per entity type (e.g., toListResponse, toItemResponse) that enforce field filtering based on the requesting user's role"
           ],
           "dependencies": ["SEC-003"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-008",
@@ -484,7 +484,7 @@
             "Example pattern: prisma.todoItem.update({ where: { id: itemId, listId: authorizedListId } }) — never just { where: { id: itemId } }"
           ],
           "dependencies": ["SEC-003"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-009",
@@ -498,7 +498,7 @@
             "Show active sessions on the dashboard (creation date, last used) so users can audit access"
           ],
           "dependencies": ["AUTH-004", "AUTH-005"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "SEC-010",
@@ -516,7 +516,7 @@
             "Audit log queries must be performant — index on listId and timestamp"
           ],
           "dependencies": ["SEC-003", "SCHEMA-007"],
-          "verified": false
+          "verified": true
         }
       ]
     },
