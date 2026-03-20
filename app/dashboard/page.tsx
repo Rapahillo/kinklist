@@ -3,6 +3,7 @@ import { getAuthenticatedUser } from "@/lib/auth";
 import { LogoutButton } from "@/components/logout-button";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { SessionsPanel } from "@/components/sessions-panel";
+import { TodoListsPanel } from "@/components/todo-lists-panel";
 
 export default async function DashboardPage() {
   const user = await getAuthenticatedUser();
@@ -20,7 +21,10 @@ export default async function DashboardPage() {
           <LogoutButton />
         </div>
       </header>
-      <p className="text-gray-600">Welcome! Your todo lists will appear here.</p>
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Your Lists</h2>
+        <TodoListsPanel />
+      </section>
       <section className="mt-8 pt-8 border-t border-gray-200">
         <SessionsPanel />
       </section>
