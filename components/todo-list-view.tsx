@@ -397,7 +397,7 @@ function TodoItemRow({
               className={`text-sm block truncate ${
                 isCompleted ? "line-through text-gray-400" : ""
               }`}
-              onDoubleClick={handleTitleClick}
+              onClick={handleTitleClick}
             >
               {item.title}
             </span>

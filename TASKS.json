@@ -603,7 +603,7 @@
             "All data fetching must go through the authorization helper (SEC-003)"
           ],
           "dependencies": ["DASH-001", "SCHEMA-007"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "LIST-002",
@@ -621,7 +621,7 @@
             "Very long titles should be handled gracefully (truncate display, store full value)"
           ],
           "dependencies": ["LIST-001"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "LIST-003",
@@ -635,7 +635,7 @@
             "Update is persisted to the database"
           ],
           "dependencies": ["LIST-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "LIST-004",
@@ -648,7 +648,7 @@
             "Changes are persisted on blur or explicit save"
           ],
           "dependencies": ["LIST-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "LIST-005",
@@ -662,7 +662,7 @@
             "Completed items remain in the list (not auto-archived)"
           ],
           "dependencies": ["LIST-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "LIST-006",
@@ -675,7 +675,7 @@
             "Item disappears from the list immediately"
           ],
           "dependencies": ["LIST-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "LIST-007",
@@ -693,7 +693,7 @@
             "Unarchiving an item returns it to the main list with OPEN status"
           ],
           "dependencies": ["LIST-005"],
-          "verified": false
+          "verified": true
         }
       ]
     },
