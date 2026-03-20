@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { withListAccess, getItemsInList } from "@/lib/queries";
 import { itemSelect, toItemResponse } from "@/lib/responses";
 import { validateTitle, validationErrorResponse } from "@/lib/validation";
+import { queueItemNotification } from "@/lib/notifications";
 import type { ValidationError } from "@/lib/validation";
 
 /**
@@ -66,6 +67,8 @@ export async function POST(
       },
       select: itemSelect,
     });
+
+    queueItemNotification(list.id, hash, title!, user.id);
 
     return NextResponse.json(toItemResponse(item), { status: 201 });
   });

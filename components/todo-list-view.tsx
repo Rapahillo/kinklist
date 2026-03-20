@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { CollaboratorsPanel } from "@/components/collaborators-panel";
+import { ShareButton } from "@/components/share-button";
 
 interface TodoItem {
   id: string;
@@ -162,6 +164,9 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
               shared
             </span>
           )}
+          <div className="ml-auto">
+            <ShareButton hash={hash} />
+          </div>
         </div>
       </header>
 
@@ -253,6 +258,10 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
           )}
         </div>
       )}
+
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <CollaboratorsPanel hash={hash} role={role} />
+      </div>
     </div>
   );
 }
