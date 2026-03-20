@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { getClientIp, verifyIpLimiter } from "@/lib/rate-limit";
+import { getClientIp, verifyIpLimiter, rateLimitResponse } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
 
 const SESSION_EXPIRY_DAYS = 3;
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
   const ipCheck = verifyIpLimiter.check(ip);
   if (!ipCheck.allowed) {
-    return NextResponse.redirect(`${appUrl}/?error=rate-limited`);
+    return rateLimitResponse(ipCheck.retryAfterSeconds);
   }
 
   const token = request.nextUrl.searchParams.get("token");
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
   // Look up the magic link
   const magicLink = await prisma.magicLink.findUnique({
     where: { token },
+    select: { id: true, email: true, usedAt: true, expiresAt: true },
   });
 
   if (!magicLink) {
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
   // Find the user (should exist — created during login request)
   const user = await prisma.user.findUnique({
     where: { email: magicLink.email },
+    select: { id: true },
   });
 
   if (!user) {
