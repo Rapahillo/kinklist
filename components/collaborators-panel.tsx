@@ -34,10 +34,6 @@ export function CollaboratorsPanel({ hash, role }: CollaboratorsPanelProps) {
     fetchCollaborators();
   }, [fetchCollaborators]);
 
-  function handleAdded(collaborator: Collaborator) {
-    setCollaborators((prev) => [...prev, collaborator]);
-  }
-
   function handleRemoved(id: string) {
     setCollaborators((prev) => prev.filter((c) => c.id !== id));
   }
@@ -73,9 +69,6 @@ export function CollaboratorsPanel({ hash, role }: CollaboratorsPanelProps) {
         </ul>
       )}
 
-      {role === "owner" && (
-        <AddCollaboratorForm hash={hash} onAdded={handleAdded} />
-      )}
     </div>
   );
 }
@@ -227,87 +220,5 @@ function CollaboratorRow({
         </div>
       )}
     </li>
-  );
-}
-
-function AddCollaboratorForm({
-  hash,
-  onAdded,
-}: {
-  hash: string;
-  onAdded: (c: Collaborator) => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = email.trim();
-    if (!trimmed || submitting) return;
-
-    setSubmitting(true);
-    setMessage(null);
-
-    try {
-      const res = await fetch(`/api/lists/${hash}/collaborators`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed }),
-      });
-
-      if (res.ok) {
-        const collaborator = await res.json();
-        onAdded(collaborator);
-        setEmail("");
-        setMessage({ type: "success", text: "Collaborator added!" });
-        inputRef.current?.focus();
-      } else {
-        const data = await res.json();
-        setMessage({
-          type: "error",
-          text: data.error || data.errors?.[0]?.message || "Failed to add",
-        });
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div>
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          ref={inputRef}
-          type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setMessage(null);
-          }}
-          placeholder="Add collaborator by email..."
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          disabled={submitting}
-        />
-        <button
-          type="submit"
-          disabled={!email.trim() || submitting}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Add
-        </button>
-      </form>
-      {message && (
-        <p
-          className={`mt-1 text-xs ${message.type === "success" ? "text-green-600" : "text-red-600"}`}
-        >
-          {message.text}
-        </p>
-      )}
-    </div>
   );
 }

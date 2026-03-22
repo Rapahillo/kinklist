@@ -517,6 +517,21 @@
           ],
           "dependencies": ["SEC-003", "SCHEMA-007"],
           "verified": true
+        },
+        {
+          "id": "SEC-011",
+          "title": "Prevent collaboration spam via join-via-link",
+          "description": "Replace the add-collaborator-by-email mechanism with a join-via-link flow to prevent bots from using the collaboration system as a spam vector. Instead of the owner entering an email to add a collaborator, users must visit the shared hash URL and explicitly join. The hash URL (128-bit entropy) serves as the invitation token.",
+          "requirements": [
+            "Remove the add-by-email form and API endpoint",
+            "Replace POST /api/lists/[hash]/collaborators to allow authenticated users to join themselves",
+            "Replace the 403 page with a 'Join this list' page for authenticated non-members",
+            "The owner can still remove collaborators and manage nicknames",
+            "No implicit user creation — users must register via magic link before joining",
+            "Audit log uses 'collaborator.join' action to distinguish from legacy 'collaborator.add'"
+          ],
+          "dependencies": ["SEC-002", "SEC-003", "SHARE-001"],
+          "verified": false
         }
       ]
     },
@@ -823,21 +838,22 @@
         },
         {
           "id": "SHARE-003",
-          "title": "Add collaborator by email",
-          "description": "Allow the list owner to add collaborators by entering their email address.",
+          "title": "Join list via shared link",
+          "description": "Allow authenticated users to join a list as a collaborator by visiting the shared hash URL. Replaces the old add-by-email flow to prevent spam abuse (SEC-008).",
           "requirements": [
-            "A 'Manage collaborators' section in the list view (visible only to owner and existing collaborators)",
-            "An input to enter an email address and add them as a collaborator",
-            "If the email doesn't have a User record, create one implicitly",
+            "A 'Manage collaborators' section in the list view (visible to owner and existing collaborators)",
+            "When an authenticated user visits /list/[hash] and is not the owner or a collaborator, show a 'Join this list' page with the list title and a join button",
+            "On click: POST to /api/lists/[hash]/collaborators creates a Collaborator record for the authenticated user",
+            "After joining, the page refreshes to show the full list view",
             "The list then appears on the collaborator's dashboard",
-            "Show confirmation that the collaborator was added"
+            "No email-based invitation — the hash URL (128-bit entropy) serves as the invitation token"
           ],
           "corner_cases": [
-            "Adding the list owner's own email should show an error: 'You already own this list'",
-            "Adding an email that's already a collaborator should show: 'Already a collaborator'",
-            "Email should be lowercased and trimmed"
+            "The list owner never sees the join page (authorizeListAccess succeeds with role 'owner')",
+            "Double-clicking join returns 400 'Already a collaborator'",
+            "A removed collaborator can re-join by visiting the link again"
           ],
-          "dependencies": ["LIST-001", "SCHEMA-005"],
+          "dependencies": ["LIST-001", "SCHEMA-005", "SEC-011"],
           "verified": false
         },
         {

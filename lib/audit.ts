@@ -12,6 +12,7 @@ export type AuditAction =
   | "list.delete"
   | "list.access"
   | "collaborator.add"
+  | "collaborator.join"
   | "collaborator.remove";
 
 interface AuditParams {

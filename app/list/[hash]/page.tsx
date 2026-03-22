@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser, authorizeListAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TodoListView } from "@/components/todo-list-view";
+import { JoinListPage } from "@/components/join-list-page";
 import { logAudit } from "@/lib/audit";
 
 export default async function ListPage({
@@ -16,10 +17,9 @@ export default async function ListPage({
 
   const { hash } = await params;
 
-  // Check if the list exists at all
   const listExists = await prisma.todoList.findUnique({
     where: { hash },
-    select: { id: true },
+    select: { id: true, title: true },
   });
 
   if (!listExists) {
@@ -40,19 +40,7 @@ export default async function ListPage({
   const access = await authorizeListAccess(user.id, hash);
 
   if (!access) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">403</h1>
-          <p className="text-gray-500 mb-4">
-            You don&apos;t have access to this list.
-          </p>
-          <a href="/dashboard" className="text-blue-600 hover:underline">
-            Back to dashboard
-          </a>
-        </div>
-      </main>
-    );
+    return <JoinListPage hash={hash} listTitle={listExists.title} />;
   }
 
   void logAudit({
