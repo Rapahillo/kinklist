@@ -12,6 +12,7 @@ import { logAudit } from "@/lib/audit";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAGIC_LINK_EXPIRY_MINUTES = 15;
+const EMAIL_FROM = process.env.EMAIL_FROM || "KinkList <onboarding@resend.dev>";
 
 export async function POST(request: NextRequest) {
   // Rate limit by IP first
@@ -72,8 +73,8 @@ export async function POST(request: NextRequest) {
   // Send email or log to console in development
   if (process.env.RESEND_API_KEY) {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: "KinkList <onboarding@resend.dev>",
+    const { error: sendError } = await resend.emails.send({
+      from: EMAIL_FROM,
       to: email,
       subject: "Your login link",
       html: `
@@ -83,6 +84,9 @@ export async function POST(request: NextRequest) {
         <p>If you didn't request this link, you can safely ignore this email.</p>
       `,
     });
+    if (sendError) {
+      console.error(`[auth/login] Failed to send magic link to ${email}:`, sendError);
+    }
   } else {
     console.log(`\n[DEV] Magic link for ${email}: ${magicLinkUrl}\n`);
   }

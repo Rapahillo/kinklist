@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
+const EMAIL_FROM = process.env.EMAIL_FROM || "KinkList <onboarding@resend.dev>";
+
 /**
  * In-memory buffer for batching item-add notifications.
  * Key: listId, Value: array of { itemTitle, addedByUserId, addedAt }
@@ -148,7 +150,7 @@ async function flushNotifications(
       for (const recipient of recipients) {
         try {
           await resend.emails.send({
-            from: "KinkList <onboarding@resend.dev>",
+            from: EMAIL_FROM,
             to: recipient.email,
             subject,
             html,
