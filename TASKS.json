@@ -723,7 +723,7 @@
           "title": "Expandable item detail view",
           "description": "Create an expand/collapse UI for each todo item to show optional fields.",
           "requirements": [
-            "Each item can be expanded to reveal: description, tags",
+            "Each item can be expanded to reveal: description, tags, props",
             "Default state is collapsed — only title and checkbox visible",
             "Clicking the item (not the checkbox) expands it",
             "Only one item expanded at a time, or allow multiple (choose based on UX feel)",
@@ -762,6 +762,55 @@
             "Changes are persisted immediately"
           ],
           "dependencies": ["DETAIL-002", "DETAIL-001"],
+          "verified": false
+        },
+        {
+          "id": "DETAIL-004",
+          "title": "Add props field to TodoItem schema",
+          "description": "Add a JSON array field to TodoItem for storing required accessories, toys, gear, and outfits (called 'props').",
+          "requirements": [
+            "Add props Json @default(\"[]\") field to TodoItem in Prisma schema",
+            "Run Prisma migration",
+            "Add props to itemSelect in lib/responses.ts",
+            "Add props to toItemResponse — returned as string array",
+            "POST /api/lists/[hash]/items accepts an optional props array of strings",
+            "PATCH /api/lists/[hash]/items/[itemId] accepts an optional props array of strings",
+            "Validate that props is an array of strings, max 20 items, each max 100 characters",
+            "Sanitize prop values (strip HTML, trim whitespace)"
+          ],
+          "dependencies": ["SCHEMA-003"],
+          "verified": false
+        },
+        {
+          "id": "DETAIL-005",
+          "title": "Create curated prop suggestions data file",
+          "description": "Create a static TypeScript file with a categorized list of common prop names for auto-suggest. This is global data maintained by us, not user-generated.",
+          "requirements": [
+            "Create lib/prop-suggestions.ts exporting categorized prop suggestions",
+            "Categories include: toys, restraints, sensory, clothing/outfits, furniture, consumables, safety/aftercare",
+            "Each category has a name and an array of prop names",
+            "Export a flat array of all prop names for simple search",
+            "Export a function to search/filter suggestions by query string (case-insensitive, prefix/substring match)",
+            "Data is static — bundled with the app, no API or DB needed"
+          ],
+          "dependencies": [],
+          "verified": false
+        },
+        {
+          "id": "DETAIL-006",
+          "title": "Props UI — add/remove props on items with auto-suggest",
+          "description": "Build the UI for adding and removing props on todo items, with auto-suggest powered by the curated global suggestions list.",
+          "requirements": [
+            "In the expanded item view, show an input field for adding props",
+            "As the user types, show a dropdown of matching suggestions from the curated list (case-insensitive)",
+            "User can select a suggestion or press enter to add a free-text prop",
+            "Props not in the curated list can still be added — auto-suggest simply does not help for those",
+            "Added props are shown as removable chips/badges",
+            "Props are displayed in both collapsed and expanded views",
+            "Duplicate props on the same item should be prevented",
+            "Changes are persisted immediately via PATCH to the item"
+          ],
+          "dependencies": ["DETAIL-004", "DETAIL-005", "DETAIL-001"],
           "verified": false
         }
       ]
