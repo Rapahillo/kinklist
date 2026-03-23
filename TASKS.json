@@ -1050,6 +1050,167 @@
           "verified": false
         }
       ]
+    },
+    {
+      "id": "ENCRYPT",
+      "name": "Encryption at Rest",
+      "priority": 11,
+      "description": "Implement per-list envelope encryption to protect all sensitive data at rest. Each list gets its own AES-256-GCM data encryption key (DEK), wrapped by a master key (KEK) stored in an environment variable. Protects against database breaches, stolen backups, and unauthorized DB access.",
+      "tasks": [
+        {
+          "id": "ENCRYPT-001",
+          "title": "Create encryption module (lib/crypto.ts)",
+          "description": "Implement the core encryption/decryption module using Node.js crypto. No new dependencies required.",
+          "requirements": [
+            "generateDEK() returns 32 cryptographically random bytes",
+            "encryptDEK(dek, kek) / decryptDEK(encryptedDek, kek) wraps/unwraps DEK with master key using AES-256-GCM",
+            "encryptField(plaintext, dek) / decryptField(ciphertext, dek) encrypts/decrypts individual text fields using AES-256-GCM",
+            "encryptFields(obj, fields, dek) / decryptFields(obj, fields, dek) batch encrypt/decrypt multiple fields on an object",
+            "computeNameHash(plaintext, dek) returns HMAC-SHA256 for deterministic uniqueness checks",
+            "isEncrypted(value) detects encrypted values by checking for 'enc:v1:' prefix",
+            "Storage format: enc:v1:<base64(iv + authTag + ciphertext)> with 12-byte IV and 16-byte auth tag",
+            "KEK is read from process.env.ENCRYPTION_MASTER_KEY (32 bytes, base64-encoded)",
+            "getKEK() throws a clear error if ENCRYPTION_MASTER_KEY is not configured",
+            "Tampered ciphertext is detected and rejected by GCM authentication",
+            "Wrong key produces an error, not garbled plaintext"
+          ],
+          "dependencies": [],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-002",
+          "title": "Schema changes for encryption",
+          "description": "Add database columns to support per-list encryption keys and deterministic tag name hashing.",
+          "requirements": [
+            "Add encryptedDEK String? column to TodoList model (nullable for phased migration)",
+            "Add nameHash String? column to Tag model",
+            "Update @@unique constraint on Tag from [name, listId] to [nameHash, listId]",
+            "Prisma migration runs cleanly against the database",
+            "Add ENCRYPTION_MASTER_KEY to .env.example with generation instructions",
+            "Generation command documented: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\""
+          ],
+          "dependencies": ["ENCRYPT-001"],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-003",
+          "title": "Extend withListAccess to provide DEK",
+          "description": "Modify the central list access authorization helper to also fetch and decrypt the list's DEK, making it available to all route handlers.",
+          "requirements": [
+            "withListAccess fetches encryptedDEK alongside existing list access check",
+            "Decrypted DEK (Buffer) is included in the ListAccess return type",
+            "When encryptedDEK is null (unencrypted legacy list), DEK is returned as null",
+            "No additional database query required — DEK is fetched in the same query",
+            "All existing route handlers continue to work without modification"
+          ],
+          "dependencies": ["ENCRYPT-001", "ENCRYPT-002"],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-004",
+          "title": "Encrypt list titles",
+          "description": "Encrypt list titles on write and decrypt on read in the lists API routes.",
+          "requirements": [
+            "POST /api/lists generates a DEK, encrypts the title, and stores both encryptedDEK and encrypted title",
+            "GET /api/lists decrypts each list's title using its DEK before returning",
+            "Mixed encrypted/unencrypted data is handled gracefully (check enc:v1: prefix)",
+            "Lists without a DEK (legacy) return plaintext title as-is",
+            "New lists always have an encryptedDEK and encrypted title",
+            "Database contains ciphertext (enc:v1:...), not plaintext, for new lists"
+          ],
+          "dependencies": ["ENCRYPT-003"],
+          "corner_cases": [
+            "GET /api/lists fetches lists from both owned and collaborated — both need DEK decryption",
+            "List title in the page.tsx server component must also be decrypted"
+          ],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-005",
+          "title": "Encrypt item titles and descriptions",
+          "description": "Encrypt item content on write and decrypt on read across all item API routes.",
+          "requirements": [
+            "POST /api/lists/[hash]/items encrypts title and description before database write",
+            "GET /api/lists/[hash]/items decrypts title and description for all items",
+            "PATCH /api/lists/[hash]/items/[itemId] encrypts any updated title or description fields",
+            "Mixed encrypted/unencrypted data is handled (check enc:v1: prefix for each field)",
+            "Null/empty descriptions remain null/empty (not encrypted)",
+            "Notification emails still contain readable (decrypted) item titles"
+          ],
+          "dependencies": ["ENCRYPT-003"],
+          "corner_cases": [
+            "queueItemNotification receives the plaintext title before encryption — verify this flow",
+            "Description field is optional (@db.Text) — only encrypt if non-null"
+          ],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-006",
+          "title": "Encrypt collaborator nicknames",
+          "description": "Encrypt collaborator nicknames on write and decrypt on read.",
+          "requirements": [
+            "PATCH /api/lists/[hash]/collaborators/[id] encrypts nickname before database write",
+            "GET /api/lists/[hash]/collaborators decrypts nicknames for all collaborators",
+            "Null nicknames remain null (not encrypted)",
+            "Role-based response shaping (owner vs collaborator) still works after decryption"
+          ],
+          "dependencies": ["ENCRYPT-003"],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-007",
+          "title": "Encrypt tag names with HMAC uniqueness",
+          "description": "Encrypt tag names and use HMAC-SHA256 for the uniqueness constraint, since encrypted values with random IVs are never equal.",
+          "requirements": [
+            "Tag name is encrypted on create and update",
+            "Tag name is decrypted on read",
+            "nameHash is computed as HMAC-SHA256(plaintext_name, dek) on create and update",
+            "nameHash is deterministic per-list (same name + same DEK = same hash)",
+            "@@unique([nameHash, listId]) prevents duplicate tag names within a list",
+            "Tags are sorted client-side after decryption (server-side sort on encrypted values is meaningless)"
+          ],
+          "dependencies": ["ENCRYPT-003"],
+          "corner_cases": [
+            "Tag color is not encrypted (non-sensitive)",
+            "If the list's DEK is rotated, all nameHash values must be recomputed"
+          ],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-008",
+          "title": "Data backfill migration script",
+          "description": "Create a standalone script to encrypt all existing plaintext data in the database.",
+          "requirements": [
+            "Script at scripts/migrate-encrypt.ts",
+            "For each list without encryptedDEK: generate DEK, encrypt list title, encrypt all item titles/descriptions, encrypt all tag names and compute nameHash, encrypt all collaborator nicknames",
+            "Script is idempotent: skips already-encrypted fields (checks enc:v1: prefix)",
+            "Script reports progress (number of lists processed, items encrypted)",
+            "Script handles errors gracefully (logs failures, continues with next list)",
+            "After running, all data in the database is encrypted"
+          ],
+          "dependencies": ["ENCRYPT-004", "ENCRYPT-005", "ENCRYPT-006", "ENCRYPT-007"],
+          "corner_cases": [
+            "Large databases should be processed in batches to avoid memory issues",
+            "Script must be run with ENCRYPTION_MASTER_KEY set in environment"
+          ],
+          "verified": false
+        },
+        {
+          "id": "ENCRYPT-009",
+          "title": "Remove plaintext fallback and finalize",
+          "description": "After all data is encrypted, remove the backward-compatible plaintext handling and make encryption mandatory.",
+          "requirements": [
+            "Make encryptedDEK non-nullable in Prisma schema",
+            "Remove isEncrypted() / enc:v1: prefix checks from all route handlers",
+            "Remove null DEK handling from withListAccess (DEK is always present)",
+            "Prisma migration runs cleanly",
+            "All API responses still return correct plaintext data",
+            "No unencrypted data remains in the database"
+          ],
+          "dependencies": ["ENCRYPT-008"],
+          "verified": false
+        }
+      ]
     }
   ]
 }
