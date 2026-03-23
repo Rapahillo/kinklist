@@ -9,8 +9,6 @@ interface TodoItem {
   title: string;
   description: string | null;
   status: "OPEN" | "COMPLETED" | "ARCHIVED";
-  priority: string | null;
-  dueDate: string | null;
   createdAt: string;
   updatedAt: string;
   createdByUserId: string;
@@ -475,12 +473,6 @@ function TodoItemRow({
             <span>
               Created {new Date(item.createdAt).toLocaleDateString()}
             </span>
-            {item.priority && <span>Priority: {item.priority}</span>}
-            {item.dueDate && (
-              <span>
-                Due: {new Date(item.dueDate).toLocaleDateString()}
-              </span>
-            )}
           </div>
         </div>
       )}

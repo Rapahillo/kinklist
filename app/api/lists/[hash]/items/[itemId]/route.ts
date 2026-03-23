@@ -75,8 +75,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         title: true,
         description: true,
         status: true,
-        priority: true,
-        dueDate: true,
         createdAt: true,
         updatedAt: true,
         createdByUserId: true,

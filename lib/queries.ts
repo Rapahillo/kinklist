@@ -45,14 +45,12 @@ export async function getItemsInList(
   listId: string,
   filters?: {
     status?: string;
-    priority?: string;
   }
 ) {
   return prisma.todoItem.findMany({
     where: {
       listId,
       ...(filters?.status ? { status: filters.status as never } : {}),
-      ...(filters?.priority ? { priority: filters.priority as never } : {}),
     },
     select: itemSelect,
     orderBy: { createdAt: "desc" },

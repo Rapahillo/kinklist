@@ -16,8 +16,6 @@ export const itemSelect = {
   title: true,
   description: true,
   status: true,
-  priority: true,
-  dueDate: true,
   createdAt: true,
   updatedAt: true,
   createdByUserId: true,
@@ -72,8 +70,6 @@ interface ItemRow {
   title: string;
   description: string | null;
   status: string;
-  priority: string | null;
-  dueDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
   createdByUserId: string;
@@ -85,8 +81,6 @@ export function toItemResponse(item: ItemRow) {
     title: item.title,
     description: item.description,
     status: item.status,
-    priority: item.priority,
-    dueDate: item.dueDate?.toISOString() ?? null,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     createdByUserId: item.createdByUserId,

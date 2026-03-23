@@ -54,20 +54,18 @@ Each todo item has:
 - **Title** (required) — short description of the task
 - **Description** (optional) — longer details about the task
 - **Status** — open or completed
-- **Priority** (optional) — low, medium, high
-- **Due date** (optional) — deadline
 - **Category / tag** (optional) — one or more labels for organization
 - **Created at** — timestamp
 - **Created by** — user ID of the creator (resolved to nickname in the UI; email never exposed to non-owners)
 
-> **UX note:** Only the title is prominent. All optional fields (description, priority, due date, tags) should be unobtrusive — shown on expand/click or via subtle controls, not cluttering the default view.
+> **UX note:** Only the title is prominent. All optional fields (description, tags) should be unobtrusive — shown on expand/click or via subtle controls, not cluttering the default view.
 
 ## Filtering & Sorting
 
 Users can:
-- Filter todos by: status (open/completed/archived), priority, category/tag, due date range
-- Sort todos by: priority, due date, creation date, status
-- Combine filters (e.g., "show high-priority open items due this week")
+- Filter todos by: status (open/completed/archived), category/tag
+- Sort todos by: creation date, status
+- Combine filters (e.g., "show open items with a specific tag")
 
 ## Pages / Views
 

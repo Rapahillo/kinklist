@@ -147,8 +147,6 @@ erDiagram
         string title
         string description
         enum status "open | completed | archived"
-        enum priority "low | medium | high"
-        datetime dueDate
         string createdById FK
         datetime createdAt
         datetime updatedAt

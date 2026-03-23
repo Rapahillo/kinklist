@@ -162,7 +162,7 @@
           "title": "Create TodoItem model",
           "description": "Define the TodoItem model with all required and optional fields.",
           "requirements": [
-            "Fields: id (UUID), title (required), description (optional, text), status (enum: OPEN, COMPLETED, ARCHIVED), priority (optional enum: LOW, MEDIUM, HIGH), dueDate (optional datetime), listId (FK to TodoList), createdByUserId (FK to User — tracks who created the item without exposing email as PII), createdAt, updatedAt",
+            "Fields: id (UUID), title (required), description (optional, text), status (enum: OPEN, COMPLETED, ARCHIVED), listId (FK to TodoList), createdByUserId (FK to User — tracks who created the item without exposing email as PII), createdAt, updatedAt",
             "status defaults to OPEN",
             "Relation: a TodoList has many TodoItems",
             "Deleting a TodoList cascades to delete its TodoItems"
@@ -723,8 +723,8 @@
           "title": "Expandable item detail view",
           "description": "Create an expand/collapse UI for each todo item to show optional fields.",
           "requirements": [
-            "Each item can be expanded to reveal: description, priority, due date, tags",
-            "Default state is collapsed — only title, checkbox, and set priority/due date indicators visible",
+            "Each item can be expanded to reveal: description, tags",
+            "Default state is collapsed — only title and checkbox visible",
             "Clicking the item (not the checkbox) expands it",
             "Only one item expanded at a time, or allow multiple (choose based on UX feel)",
             "Smooth expand/collapse animation"
@@ -734,38 +734,6 @@
         },
         {
           "id": "DETAIL-002",
-          "title": "Set and change priority",
-          "description": "Allow setting a priority level on a todo item.",
-          "requirements": [
-            "Priority options: Low, Medium, High (or unset/none)",
-            "A dropdown or button group in the expanded item view",
-            "Priority can be changed or cleared at any time",
-            "When set, show a small priority indicator on the collapsed item (e.g., colored dot or icon)",
-            "Change is persisted immediately"
-          ],
-          "dependencies": ["DETAIL-001"],
-          "verified": false
-        },
-        {
-          "id": "DETAIL-003",
-          "title": "Set and change due date",
-          "description": "Allow setting a deadline on a todo item.",
-          "requirements": [
-            "A date picker in the expanded item view",
-            "Due date can be set, changed, or cleared",
-            "When set, show the due date on the collapsed item",
-            "Overdue items (due date in the past, not completed) should have a visual warning (e.g., red text)",
-            "Change is persisted immediately"
-          ],
-          "corner_cases": [
-            "Due dates in the past should be allowed (user may be logging already-late tasks)",
-            "Timezone handling: store as UTC, display in user's local timezone"
-          ],
-          "dependencies": ["DETAIL-001"],
-          "verified": false
-        },
-        {
-          "id": "DETAIL-004",
           "title": "Manage tags within a list",
           "description": "Allow creating, viewing, and deleting tags that are scoped to a specific list.",
           "requirements": [
@@ -783,7 +751,7 @@
           "verified": false
         },
         {
-          "id": "DETAIL-005",
+          "id": "DETAIL-003",
           "title": "Add and remove tags on a todo item",
           "description": "Allow tagging and untagging todo items with existing list tags.",
           "requirements": [
@@ -793,7 +761,7 @@
             "Tags on an item are shown as small chips/badges in both collapsed and expanded views",
             "Changes are persisted immediately"
           ],
-          "dependencies": ["DETAIL-004", "DETAIL-001"],
+          "dependencies": ["DETAIL-002", "DETAIL-001"],
           "verified": false
         }
       ]
@@ -940,18 +908,6 @@
         },
         {
           "id": "FILTER-002",
-          "title": "Filter by priority",
-          "description": "Filter todo items by priority level.",
-          "requirements": [
-            "Filter options: All, High, Medium, Low, Unset",
-            "Can be combined with status filter",
-            "Selecting a filter immediately updates the displayed items"
-          ],
-          "dependencies": ["DETAIL-002"],
-          "verified": false
-        },
-        {
-          "id": "FILTER-003",
           "title": "Filter by tag",
           "description": "Filter todo items by one or more tags.",
           "requirements": [
@@ -960,27 +916,15 @@
             "Multiple tags can be selected (show items that have ANY of the selected tags)",
             "Can be combined with other filters"
           ],
-          "dependencies": ["DETAIL-005"],
-          "verified": false
-        },
-        {
-          "id": "FILTER-004",
-          "title": "Filter by due date range",
-          "description": "Filter todo items by their due date.",
-          "requirements": [
-            "Filter options: All, Overdue, Due today, Due this week, Due this month, No due date",
-            "Can be combined with other filters",
-            "Overdue = due date in the past and status is not COMPLETED or ARCHIVED"
-          ],
           "dependencies": ["DETAIL-003"],
           "verified": false
         },
         {
-          "id": "FILTER-005",
+          "id": "FILTER-003",
           "title": "Sort items",
           "description": "Allow sorting todo items by various fields.",
           "requirements": [
-            "Sort options: Priority (high first), Due date (soonest first), Creation date (newest first), Status",
+            "Sort options: Creation date (newest first), Status",
             "Default sort: creation date (newest first)",
             "Sort direction can be toggled (ascending/descending)",
             "Sorting works in combination with active filters"
@@ -989,16 +933,16 @@
           "verified": false
         },
         {
-          "id": "FILTER-006",
+          "id": "FILTER-004",
           "title": "Persist filter and sort state in URL",
           "description": "Store the current filter and sort configuration in URL query parameters so it can be bookmarked or shared.",
           "requirements": [
-            "Filter and sort selections are reflected in URL query params (e.g., ?status=open&priority=high&sort=dueDate)",
+            "Filter and sort selections are reflected in URL query params (e.g., ?status=open&sort=createdAt)",
             "Loading a URL with filter params applies those filters automatically",
             "Changing filters updates the URL without a full page reload",
             "Default filters produce a clean URL (no redundant params)"
           ],
-          "dependencies": ["FILTER-001", "FILTER-002", "FILTER-003", "FILTER-004", "FILTER-005"],
+          "dependencies": ["FILTER-001", "FILTER-002", "FILTER-003"],
           "verified": false
         }
       ]
