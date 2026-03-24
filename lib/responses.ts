@@ -15,10 +15,18 @@ export const itemSelect = {
   id: true,
   title: true,
   description: true,
+  props: true,
   status: true,
   createdAt: true,
   updatedAt: true,
   createdByUserId: true,
+  tags: {
+    select: {
+      id: true,
+      name: true,
+      color: true,
+    },
+  },
 } as const;
 
 export const tagSelect = {
@@ -69,10 +77,12 @@ interface ItemRow {
   id: string;
   title: string;
   description: string | null;
+  props: unknown;
   status: string;
   createdAt: Date;
   updatedAt: Date;
   createdByUserId: string;
+  tags: { id: string; name: string; color: string | null }[];
 }
 
 export function toItemResponse(item: ItemRow) {
@@ -80,10 +90,12 @@ export function toItemResponse(item: ItemRow) {
     id: item.id,
     title: item.title,
     description: item.description,
+    props: Array.isArray(item.props) ? (item.props as string[]) : [],
     status: item.status,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     createdByUserId: item.createdByUserId,
+    tags: item.tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
   };
 }
 

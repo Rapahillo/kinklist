@@ -102,6 +102,37 @@ export function validateTagName(
   return requireString(value, "tagName", 50, errors);
 }
 
+export function validateProps(
+  value: unknown,
+  errors: ValidationError[]
+): string[] | null {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) {
+    errors.push({ field: "props", message: "props must be an array" });
+    return null;
+  }
+  if (value.length > 20) {
+    errors.push({ field: "props", message: "props must have at most 20 items" });
+    return null;
+  }
+  const cleaned: string[] = [];
+  for (let i = 0; i < value.length; i++) {
+    const item = value[i];
+    if (typeof item !== "string") {
+      errors.push({ field: "props", message: `props[${i}] must be a string` });
+      return null;
+    }
+    const trimmed = item.trim();
+    if (trimmed.length === 0) continue;
+    if (trimmed.length > 100) {
+      errors.push({ field: "props", message: `props[${i}] must be at most 100 characters` });
+      return null;
+    }
+    cleaned.push(sanitizeText(trimmed));
+  }
+  return cleaned;
+}
+
 export function validateEmail(
   value: unknown,
   errors: ValidationError[]

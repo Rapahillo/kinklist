@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { withListAccess, getItemsInList } from "@/lib/queries";
 import { itemSelect, toItemResponse } from "@/lib/responses";
-import { validateTitle, validationErrorResponse } from "@/lib/validation";
+import { validateTitle, validateProps, validationErrorResponse } from "@/lib/validation";
 import { queueItemNotification } from "@/lib/notifications";
 import type { ValidationError } from "@/lib/validation";
 
@@ -53,6 +53,7 @@ export async function POST(
 
   const errors: ValidationError[] = [];
   const title = validateTitle(body.title, errors);
+  const props = "props" in body ? validateProps(body.props, errors) : null;
   if (errors.length > 0) {
     return validationErrorResponse(errors);
   }
@@ -64,6 +65,7 @@ export async function POST(
         status: "OPEN",
         listId: list.id,
         createdByUserId: user.id,
+        ...(props !== null ? { props } : {}),
       },
       select: itemSelect,
     });

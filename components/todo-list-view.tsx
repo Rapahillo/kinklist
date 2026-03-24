@@ -3,11 +3,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { CollaboratorsPanel } from "@/components/collaborators-panel";
 import { ShareButton } from "@/components/share-button";
+import { searchPropSuggestions } from "@/lib/prop-suggestions";
+
+interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+}
 
 interface TodoItem {
   id: string;
   title: string;
   description: string | null;
+  props: string[];
+  tags: Tag[];
   status: "OPEN" | "COMPLETED" | "ARCHIVED";
   createdAt: string;
   updatedAt: string;
@@ -20,18 +29,37 @@ interface TodoListViewProps {
   role: "owner" | "collaborator";
 }
 
+const TAG_COLORS = [
+  "#ef4444", // red
+  "#f97316", // orange
+  "#eab308", // yellow
+  "#22c55e", // green
+  "#3b82f6", // blue
+  "#8b5cf6", // violet
+  "#ec4899", // pink
+  "#6b7280", // gray
+];
+
 export function TodoListView({ hash, title, role }: TodoListViewProps) {
   const [items, setItems] = useState<TodoItem[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
     try {
-      const res = await fetch(`/api/lists/${hash}/items`);
-      if (res.ok) {
-        const data = await res.json();
+      const [itemsRes, tagsRes] = await Promise.all([
+        fetch(`/api/lists/${hash}/items`),
+        fetch(`/api/lists/${hash}/tags`),
+      ]);
+      if (itemsRes.ok) {
+        const data = await itemsRes.json();
         setItems(data.items);
+      }
+      if (tagsRes.ok) {
+        const data = await tagsRes.json();
+        setTags(data.tags);
       }
     } finally {
       setLoading(false);
@@ -98,6 +126,18 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
     }
   }
 
+  async function handleUpdateProps(itemId: string, props: string[]) {
+    const res = await fetch(`/api/lists/${hash}/items/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ props }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setItems((prev) => prev.map((i) => (i.id === itemId ? updated : i)));
+    }
+  }
+
   async function handleDeleteItem(itemId: string) {
     const res = await fetch(`/api/lists/${hash}/items/${itemId}`, {
       method: "DELETE",
@@ -127,6 +167,59 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "OPEN" }),
     });
+    if (res.ok) {
+      const updated = await res.json();
+      setItems((prev) => prev.map((i) => (i.id === itemId ? updated : i)));
+    }
+  }
+
+  async function handleCreateTag(name: string, color: string | null) {
+    const res = await fetch(`/api/lists/${hash}/tags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, color }),
+    });
+    if (res.ok) {
+      const tag = await res.json();
+      setTags((prev) => [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)));
+      return null;
+    }
+    const data = await res.json().catch(() => null);
+    return data?.error ?? "Failed to create tag";
+  }
+
+  async function handleDeleteTag(tagId: string) {
+    const res = await fetch(`/api/lists/${hash}/tags/${tagId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setTags((prev) => prev.filter((t) => t.id !== tagId));
+      setItems((prev) =>
+        prev.map((i) => ({
+          ...i,
+          tags: i.tags.filter((t) => t.id !== tagId),
+        }))
+      );
+    }
+  }
+
+  async function handleAddTagToItem(itemId: string, tagId: string) {
+    const res = await fetch(`/api/lists/${hash}/items/${itemId}/tags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tagId }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setItems((prev) => prev.map((i) => (i.id === itemId ? updated : i)));
+    }
+  }
+
+  async function handleRemoveTagFromItem(itemId: string, tagId: string) {
+    const res = await fetch(
+      `/api/lists/${hash}/items/${itemId}/tags/${tagId}`,
+      { method: "DELETE" }
+    );
     if (res.ok) {
       const updated = await res.json();
       setItems((prev) => prev.map((i) => (i.id === itemId ? updated : i)));
@@ -184,6 +277,7 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
             <TodoItemRow
               key={item.id}
               item={item}
+              availableTags={tags}
               expanded={expandedItemId === item.id}
               onToggle={() =>
                 setExpandedItemId(
@@ -195,6 +289,9 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
               onUpdateDescription={(d) =>
                 handleUpdateDescription(item.id, d)
               }
+              onUpdateProps={(p) => handleUpdateProps(item.id, p)}
+              onAddTag={(tagId) => handleAddTagToItem(item.id, tagId)}
+              onRemoveTag={(tagId) => handleRemoveTagFromItem(item.id, tagId)}
               onDelete={() => handleDeleteItem(item.id)}
             />
           ))}
@@ -258,11 +355,21 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
       )}
 
       <div className="mt-8 pt-6 border-t border-gray-200">
+        <TagsPanel
+          tags={tags}
+          onCreate={handleCreateTag}
+          onDelete={handleDeleteTag}
+        />
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-gray-200">
         <CollaboratorsPanel hash={hash} role={role} />
       </div>
     </div>
   );
 }
+
+// --- AddItemForm ---
 
 function AddItemForm({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
   const [title, setTitle] = useState("");
@@ -306,28 +413,196 @@ function AddItemForm({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
   );
 }
 
+// --- TagsPanel ---
+
+function TagsPanel({
+  tags,
+  onCreate,
+  onDelete,
+}: {
+  tags: Tag[];
+  onCreate: (name: string, color: string | null) => Promise<string | null>;
+  onDelete: (tagId: string) => Promise<void>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = newName.trim();
+    if (!trimmed || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const err = await onCreate(trimmed, selectedColor);
+      if (err) {
+        setError(err);
+      } else {
+        setNewName("");
+        setSelectedColor(null);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-sm font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`transition-transform ${expanded ? "rotate-90" : ""}`}
+        >
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+        Tags ({tags.length})
+      </button>
+
+      <div
+        className="overflow-hidden transition-all duration-200 ease-in-out"
+        style={{ maxHeight: expanded ? "500px" : "0" }}
+      >
+        <div className="mt-3 space-y-3">
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: tag.color ?? "#6b7280" }}
+                >
+                  {tag.name}
+                  {confirmDeleteId === tag.id ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          onDelete(tag.id);
+                          setConfirmDeleteId(null);
+                        }}
+                        className="ml-1 underline hover:no-underline"
+                        title="Confirm delete"
+                      >
+                        del?
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="hover:opacity-75"
+                        title="Cancel"
+                      >
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(tag.id)}
+                      className="hover:opacity-75 ml-0.5"
+                      title="Delete tag"
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={handleCreate} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="New tag name..."
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={submitting}
+                maxLength={50}
+              />
+              <button
+                type="submit"
+                disabled={!newName.trim() || submitting}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+              >
+                Add tag
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400">Color:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedColor(null)}
+                className={`w-5 h-5 rounded-full bg-gray-300 ring-offset-1 ${selectedColor === null ? "ring-2 ring-blue-500" : ""}`}
+                title="No color (gray)"
+              />
+              {TAG_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setSelectedColor(c)}
+                  className={`w-5 h-5 rounded-full ring-offset-1 ${selectedColor === c ? "ring-2 ring-blue-500" : ""}`}
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
+            </div>
+            {error && <p className="text-xs text-red-600">{error}</p>}
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- TodoItemRow ---
+
 function TodoItemRow({
   item,
+  availableTags,
   expanded,
   onToggle,
   onToggleStatus,
   onUpdateTitle,
   onUpdateDescription,
+  onUpdateProps,
+  onAddTag,
+  onRemoveTag,
   onDelete,
 }: {
   item: TodoItem;
+  availableTags: Tag[];
   expanded: boolean;
   onToggle: () => void;
   onToggleStatus: () => void;
   onUpdateTitle: (title: string) => Promise<void>;
   onUpdateDescription: (description: string | null) => Promise<void>;
+  onUpdateProps: (props: string[]) => Promise<void>;
+  onAddTag: (tagId: string) => Promise<void>;
+  onRemoveTag: (tagId: string) => Promise<void>;
   onDelete: () => void;
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(item.title);
   const [descValue, setDescValue] = useState(item.description || "");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [propInput, setPropInput] = useState("");
+  const [propSuggestions, setPropSuggestions] = useState<string[]>([]);
+  const [showPropDropdown, setShowPropDropdown] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const propInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitleValue(item.title);
@@ -373,16 +648,60 @@ function TodoItemRow({
     }
   }
 
+  function handlePropInputChange(val: string) {
+    setPropInput(val);
+    if (val.trim()) {
+      const suggestions = searchPropSuggestions(val).filter(
+        (s) => !item.props.includes(s)
+      );
+      setPropSuggestions(suggestions.slice(0, 8));
+      setShowPropDropdown(suggestions.length > 0);
+    } else {
+      setPropSuggestions([]);
+      setShowPropDropdown(false);
+    }
+  }
+
+  async function addProp(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || item.props.includes(trimmed) || item.props.length >= 20)
+      return;
+    const newProps = [...item.props, trimmed];
+    await onUpdateProps(newProps);
+    setPropInput("");
+    setPropSuggestions([]);
+    setShowPropDropdown(false);
+    propInputRef.current?.focus();
+  }
+
+  async function removeProp(prop: string) {
+    const newProps = item.props.filter((p) => p !== prop);
+    await onUpdateProps(newProps);
+  }
+
+  function handlePropKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addProp(propInput);
+    } else if (e.key === "Escape") {
+      setShowPropDropdown(false);
+    }
+  }
+
+  const unassignedTags = availableTags.filter(
+    (t) => !item.tags.some((it) => it.id === t.id)
+  );
+
   const isCompleted = item.status === "COMPLETED";
 
   return (
     <li className="rounded-lg border border-gray-200 transition-colors hover:bg-gray-50">
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-start gap-3 px-4 py-3">
         <input
           type="checkbox"
           checked={isCompleted}
           onChange={onToggleStatus}
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
         />
 
         <div
@@ -408,6 +727,29 @@ function TodoItemRow({
             >
               {item.title}
             </span>
+          )}
+
+          {/* Tag and prop chips in collapsed view */}
+          {(item.tags.length > 0 || item.props.length > 0) && !editingTitle && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: tag.color ?? "#6b7280" }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {item.props.map((prop) => (
+                <span
+                  key={prop}
+                  className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600"
+                >
+                  {prop}
+                </span>
+              ))}
+            </div>
           )}
         </div>
 
@@ -454,8 +796,13 @@ function TodoItemRow({
         </div>
       </div>
 
-      {expanded && (
+      {/* Expand/collapse panel with animation */}
+      <div
+        className="overflow-hidden transition-all duration-200 ease-in-out"
+        style={{ maxHeight: expanded ? "600px" : "0" }}
+      >
         <div className="px-4 pb-3 pt-0 border-t border-gray-100">
+          {/* Description */}
           <div className="mt-2">
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Description
@@ -469,13 +816,109 @@ function TodoItemRow({
               className="w-full text-sm rounded border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y"
             />
           </div>
+
+          {/* Tags */}
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Tags
+            </label>
+            <div className="flex flex-wrap gap-1">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: tag.color ?? "#6b7280" }}
+                >
+                  {tag.name}
+                  <button
+                    onClick={() => onRemoveTag(tag.id)}
+                    className="hover:opacity-75 ml-0.5"
+                    title="Remove tag"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {unassignedTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => onAddTag(tag.id)}
+                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors"
+                  title={`Add tag: ${tag.name}`}
+                >
+                  + {tag.name}
+                </button>
+              ))}
+              {availableTags.length === 0 && (
+                <span className="text-xs text-gray-400 italic">
+                  No tags yet — add some in the Tags panel below
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Props */}
+          <div className="mt-3 relative">
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Props
+            </label>
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {item.props.map((prop) => (
+                <span
+                  key={prop}
+                  className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600"
+                >
+                  {prop}
+                  <button
+                    onClick={() => removeProp(prop)}
+                    className="hover:text-red-500 ml-0.5"
+                    title="Remove prop"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            {item.props.length < 20 && (
+              <div className="relative">
+                <input
+                  ref={propInputRef}
+                  type="text"
+                  value={propInput}
+                  onChange={(e) => handlePropInputChange(e.target.value)}
+                  onKeyDown={handlePropKeyDown}
+                  onBlur={() => setTimeout(() => setShowPropDropdown(false), 150)}
+                  placeholder="Add a prop..."
+                  className="w-full text-sm rounded border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                {showPropDropdown && (
+                  <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-md text-sm">
+                    {propSuggestions.map((s) => (
+                      <li key={s}>
+                        <button
+                          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-gray-700"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            addProp(s);
+                          }}
+                        >
+                          {s}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
             <span>
               Created {new Date(item.createdAt).toLocaleDateString()}
             </span>
           </div>
         </div>
-      )}
+      </div>
     </li>
   );
 }

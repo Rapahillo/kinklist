@@ -71,6 +71,7 @@ model TodoItem {
   id              String            @id @default(uuid()) @db.Uuid
   title           String
   description     String?           @db.Text
+  props           Json              @default("[]")
   status          TodoItemStatus    @default(OPEN)
   listId          String            @db.Uuid
   createdByUserId String            @db.Uuid

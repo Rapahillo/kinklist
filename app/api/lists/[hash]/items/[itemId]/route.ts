@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { withListAccess, getItemInList } from "@/lib/queries";
-import { toItemResponse } from "@/lib/responses";
+import { itemSelect, toItemResponse } from "@/lib/responses";
 import {
   validateTitle,
   validateDescription,
+  validateProps,
   validationErrorResponse,
 } from "@/lib/validation";
 import type { ValidationError } from "@/lib/validation";
@@ -14,7 +15,7 @@ type Params = { params: Promise<{ hash: string; itemId: string }> };
 
 /**
  * PATCH /api/lists/[hash]/items/[itemId]
- * Update a todo item (title, description, status).
+ * Update a todo item (title, description, props, status).
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const authResult = await requireAuth();
@@ -49,6 +50,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       data.description = description;
     }
 
+    if ("props" in body) {
+      const props = validateProps(body.props, errors);
+      if (errors.length > 0) return validationErrorResponse(errors);
+      data.props = props ?? [];
+    }
+
     if ("status" in body) {
       const validStatuses = ["OPEN", "COMPLETED", "ARCHIVED"];
       if (!validStatuses.includes(body.status)) {
@@ -70,15 +77,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await prisma.todoItem.update({
       where: { id: itemId },
       data,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        createdByUserId: true,
-      },
+      select: itemSelect,
     });
 
     return NextResponse.json(toItemResponse(updated));
