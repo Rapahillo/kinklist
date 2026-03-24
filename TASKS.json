@@ -45,11 +45,11 @@
           "requirements": [
             ".env.example exists with all required variable names (no real values)",
             ".env.local is in .gitignore",
-            "Required variables: DATABASE_URL, RESEND_API_KEY, NEXT_PUBLIC_APP_URL",
+            "Required variables: DATABASE_URL, RESEND_API_KEY, NEXT_PUBLIC_APP_URL, EMAIL_FROM",
             ".env.local works with the local Docker PostgreSQL instance"
           ],
           "dependencies": ["SETUP-002"],
-          "verified": true
+          "verified": false
         },
         {
           "id": "SETUP-004",
@@ -265,7 +265,9 @@
             "Store a MagicLink record with the token, email, and expiresAt (15 minutes from now)",
             "Send an email via Resend containing a link: {APP_URL}/api/auth/verify?token={token}",
             "In development (no RESEND_API_KEY), log the magic link URL to the server console instead",
-            "Return 200 with { message: 'Magic link sent' } regardless of whether the email exists (prevent email enumeration)"
+            "Return 200 with { message: 'Magic link sent' } regardless of whether the email exists (prevent email enumeration)",
+            "The sender address is read from the EMAIL_FROM environment variable (defaults to onboarding@resend.dev for development)",
+            "The Resend API response is checked for errors and failures are logged to the console"
           ],
           "corner_cases": [
             "Multiple magic link requests for the same email should each create a new token (old ones remain valid until expiry)",
@@ -273,7 +275,7 @@
             "Return the same success response even for invalid emails to prevent enumeration"
           ],
           "dependencies": ["SCHEMA-007"],
-          "verified": true
+          "verified": false
         },
         {
           "id": "AUTH-003",
@@ -350,6 +352,20 @@
           ],
           "dependencies": ["AUTH-004"],
           "verified": true
+        },
+        {
+          "id": "AUTH-007",
+          "title": "Configure verified sender domain for email delivery",
+          "description": "Set up a verified sender domain in Resend and configure EMAIL_FROM so magic link emails deliver to all users, not just the account owner.",
+          "requirements": [
+            "A sending domain is verified in the Resend dashboard (DNS records: MX, TXT/SPF, DKIM)",
+            "EMAIL_FROM is set in production environment to use the verified domain (e.g. 'KinkList <noreply@yourdomain.com>')",
+            "Magic link emails deliver successfully to external email addresses (not just the Resend account owner)",
+            "Notification emails (item additions) also use the configured EMAIL_FROM",
+            "The onboarding@resend.dev fallback remains for local development without Resend configuration"
+          ],
+          "dependencies": ["AUTH-002"],
+          "verified": false
         }
       ]
     },
