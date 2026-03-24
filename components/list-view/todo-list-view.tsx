@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Tag, TodoItem } from "@/lib/types";
 import { CollaboratorsPanel } from "@/components/list-view/collaborators-panel";
-import { ShareButton } from "@/components/ui/share-button";
 import { AddItemForm } from "@/components/list-view/add-item-form";
 import { TagsPanel } from "@/components/list-view/tags-panel";
-import { TodoItemRow } from "@/components/list-view/todo-item-row";
+import { ListViewHeader } from "@/components/list-view/list-view-header";
+import { ActiveItemsList } from "@/components/list-view/active-items-list";
+import { ArchivedSection } from "@/components/list-view/archived-section";
 import { fetchItems, createItem, archiveCompleted, updateItem } from "@/lib/items-api";
 import { fetchTags } from "@/lib/tags-api";
 
@@ -20,7 +21,6 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
   const [items, setItems] = useState<TodoItem[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showArchived, setShowArchived] = useState(false);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -87,123 +87,27 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
 
   return (
     <div>
-      <header className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <a
-            href="/dashboard"
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            title="Back to dashboard"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </a>
-          <h1 className="text-2xl font-bold">{title}</h1>
-          {role === "collaborator" && (
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-              shared
-            </span>
-          )}
-          <div className="ml-auto">
-            <ShareButton hash={hash} />
-          </div>
-        </div>
-      </header>
+      <ListViewHeader title={title} hash={hash} role={role} />
 
       <AddItemForm onAdd={handleAddItem} />
 
-      {loading ? (
-        <p className="text-gray-500 text-sm mt-4">Loading items...</p>
-      ) : activeItems.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 p-8 text-center mt-4">
-          <p className="text-gray-500">
-            No items yet. Add one above to get started!
-          </p>
-        </div>
-      ) : (
-        <ul className="mt-4 space-y-1">
-          {activeItems.map((item) => (
-            <TodoItemRow
-              key={item.id}
-              item={item}
-              hash={hash}
-              availableTags={tags}
-              expanded={expandedItemId === item.id}
-              onToggle={() =>
-                setExpandedItemId(expandedItemId === item.id ? null : item.id)
-              }
-              onItemUpdated={handleItemUpdated}
-              onItemDeleted={handleItemDeleted}
-            />
-          ))}
-        </ul>
-      )}
+      <ActiveItemsList
+        loading={loading}
+        items={activeItems}
+        hash={hash}
+        availableTags={tags}
+        expandedItemId={expandedItemId}
+        onToggleExpand={(id) => setExpandedItemId(expandedItemId === id ? null : id)}
+        onItemUpdated={handleItemUpdated}
+        onItemDeleted={handleItemDeleted}
+      />
 
-      {hasCompleted && (
-        <div className="mt-4">
-          <button
-            onClick={handleArchiveCompleted}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
-          >
-            Archive completed items
-          </button>
-        </div>
-      )}
-
-      {archivedItems.length > 0 && (
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <button
-            onClick={() => setShowArchived(!showArchived)}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`transition-transform ${showArchived ? "rotate-90" : ""}`}
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-            Archived ({archivedItems.length})
-          </button>
-          {showArchived && (
-            <ul className="mt-2 space-y-1">
-              {archivedItems.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-center gap-3 rounded-lg border border-gray-100 px-4 py-2 bg-gray-50 text-gray-400"
-                >
-                  <span className="flex-1 line-through text-sm truncate">
-                    {item.title}
-                  </span>
-                  <button
-                    onClick={() => handleUnarchive(item.id)}
-                    className="text-xs text-blue-500 hover:text-blue-700 whitespace-nowrap"
-                  >
-                    Unarchive
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      <ArchivedSection
+        items={archivedItems}
+        hasCompleted={hasCompleted}
+        onArchiveCompleted={handleArchiveCompleted}
+        onUnarchive={handleUnarchive}
+      />
 
       <div className="mt-8 pt-6 border-t border-gray-200">
         <TagsPanel
