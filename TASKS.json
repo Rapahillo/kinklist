@@ -639,17 +639,23 @@
         {
           "id": "LIST-002",
           "title": "Add a new todo item",
-          "description": "Allow adding new todo items to a list with at minimum a title.",
+          "description": "Allow adding new todo items to a list with at minimum a title. Optionally include description and props at creation time.",
           "requirements": [
             "An input field (or form) at the top or bottom of the list for quick item entry",
             "Title is required — cannot submit empty",
             "On submit: create a TodoItem with status OPEN, createdByUserId set to the authenticated user's ID (all users must be authenticated per SEC-002)",
             "New item appears in the list immediately without full page reload",
-            "Focus returns to the input after adding for rapid entry"
+            "Focus returns to the input after adding for rapid entry",
+            "A '+ Add details' toggle below the title input reveals optional description textarea and props editor",
+            "Description and props submitted at creation are persisted — POST /api/lists/[hash]/items accepts title, optional description, and optional props",
+            "Newly created item auto-expands to show its detail panel",
+            "The expanded creation form collapses and all fields reset after successful submission"
           ],
           "corner_cases": [
             "Whitespace-only titles should be rejected",
-            "Very long titles should be handled gracefully (truncate display, store full value)"
+            "Very long titles should be handled gracefully (truncate display, store full value)",
+            "Empty description string is treated as null (not persisted as empty string)",
+            "Empty props array is not sent — omitted from POST body"
           ],
           "dependencies": ["LIST-001"],
           "verified": true
@@ -741,12 +747,14 @@
           "requirements": [
             "Each item can be expanded to reveal: description, tags, props",
             "Default state is collapsed — only title and checkbox visible",
-            "Clicking the item (not the checkbox) expands it",
-            "Only one item expanded at a time, or allow multiple (choose based on UX feel)",
-            "Smooth expand/collapse animation"
+            "Clicking the item row area (not the checkbox or title text) expands it",
+            "Only one item expanded at a time",
+            "Smooth expand/collapse animation via CSS grid-template-rows transition",
+            "A chevron icon on the right of each row rotates 180° when expanded, indicating expand state",
+            "Newly created items auto-expand immediately after creation"
           ],
           "dependencies": ["LIST-002"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "DETAIL-002",
@@ -795,7 +803,7 @@
             "Sanitize prop values (strip HTML, trim whitespace)"
           ],
           "dependencies": ["SCHEMA-003"],
-          "verified": false
+          "verified": true
         },
         {
           "id": "DETAIL-005",
@@ -810,7 +818,7 @@
             "Data is static — bundled with the app, no API or DB needed"
           ],
           "dependencies": [],
-          "verified": false
+          "verified": true
         },
         {
           "id": "DETAIL-006",
@@ -824,10 +832,11 @@
             "Added props are shown as removable chips/badges",
             "Props are displayed in both collapsed and expanded views",
             "Duplicate props on the same item should be prevented",
-            "Changes are persisted immediately via PATCH to the item"
+            "Changes are persisted immediately via PATCH to the item",
+            "Props can also be added at item creation time via the '+ Add details' toggle in AddItemForm (reuses same usePropInput hook and PropChipList/PropAutocompleteInput components)"
           ],
           "dependencies": ["DETAIL-004", "DETAIL-005", "DETAIL-001"],
-          "verified": false
+          "verified": true
         }
       ]
     },

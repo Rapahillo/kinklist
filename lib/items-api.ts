@@ -9,12 +9,13 @@ export async function fetchItems(hash: string): Promise<TodoItem[]> {
 
 export async function createItem(
   hash: string,
-  title: string
+  title: string,
+  options?: { description?: string; props?: string[] }
 ): Promise<TodoItem | null> {
   const res = await fetch(`/api/lists/${hash}/items`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, ...options }),
   });
   if (!res.ok) return null;
   return res.json();

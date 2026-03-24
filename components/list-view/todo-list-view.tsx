@@ -40,9 +40,12 @@ export function TodoListView({ hash, title, role }: TodoListViewProps) {
     loadData();
   }, [loadData]);
 
-  async function handleAddItem(itemTitle: string) {
-    const item = await createItem(hash, itemTitle);
-    if (item) setItems((prev) => [item, ...prev]);
+  async function handleAddItem(itemTitle: string, description?: string, props?: string[]) {
+    const item = await createItem(hash, itemTitle, { description, props });
+    if (item) {
+      setItems((prev) => [item, ...prev]);
+      setExpandedItemId(item.id);
+    }
   }
 
   async function handleArchiveCompleted() {
