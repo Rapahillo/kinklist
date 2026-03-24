@@ -180,7 +180,7 @@ export function TodoItemRow({
 
       <div
         className="overflow-hidden transition-all duration-200 ease-in-out"
-        style={{ maxHeight: expanded ? "600px" : "0" }}
+        style={{ maxHeight: expanded ? "2000px" : "0" }}
       >
         <div className="px-4 pb-3 pt-0 border-t border-gray-100">
           <div className="mt-2">
