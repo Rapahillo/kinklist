@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { CreateListForm } from "@/components/create-list-form";
-import { DeleteListButton } from "@/components/delete-list-button";
+import { CreateListForm } from "@/components/lists/create-list-form";
+import { DeleteListButton } from "@/components/lists/delete-list-button";
 
 interface TodoListItem {
   hash: string;

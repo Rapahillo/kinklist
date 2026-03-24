@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/lib/auth";
-import { LogoutButton } from "@/components/logout-button";
-import { DeleteAccountButton } from "@/components/delete-account-button";
-import { SessionsPanel } from "@/components/sessions-panel";
-import { TodoListsPanel } from "@/components/todo-lists-panel";
+import { LogoutButton } from "@/components/auth/logout-button";
+import { DeleteAccountButton } from "@/components/auth/delete-account-button";
+import { SessionsPanel } from "@/components/auth/sessions-panel";
+import { TodoListsPanel } from "@/components/lists/todo-lists-panel";
 
 export default async function DashboardPage() {
   const user = await getAuthenticatedUser();

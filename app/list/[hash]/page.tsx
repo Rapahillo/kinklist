@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser, authorizeListAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { TodoListView } from "@/components/todo-list-view";
-import { JoinListPage } from "@/components/join-list-page";
+import { TodoListView } from "@/components/list-view/todo-list-view";
+import { JoinListPage } from "@/components/list-view/join-list-page";
 import { logAudit } from "@/lib/audit";
 
 export default async function ListPage({
